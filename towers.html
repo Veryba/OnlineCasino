@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Towers Game</title>
+    <style>
+        @import url('shared.css');
+
+        .game-container {
+            display: flex;
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            gap: 20px;
+        }
+
+        .controls {
+            flex: 0 0 25%;
+            padding: 20px;
+            background: #1d1d1d;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .grid-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        .grid {
+            margin: 0;
+            display: grid;
+            grid-template-columns: repeat(var(--num-cols), 1fr);
+            gap: 5px;
+            width: 335px; /* Fixed width for all difficulties */
+            height: 670px; /* Fixed height based on 8 rows with 5px gaps */
+            justify-content: center;
+            position: relative;
+        }
+
+        .row {
+            display: contents;
+        }
+
+        .cell {
+            width: 100%;
+            height: 80px; /* Fixed height for all cells */
+            background: #2d2d2d;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            position: relative;
+        }
+
+        .cell:hover:not(.revealed) {
+            background: #3d3d3d;
+            transform: translateY(-2px);
+        }
+
+        .cell.revealed.win {
+            background: #44ff44;
+        }
+
+        .cell.revealed.lose {
+            background: #ff4444;
+        }
+
+        .cell.revealed.unclicked {
+            background: #404040;
+        }
+
+        .cell.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Set number of columns for each difficulty */
+        [data-columns="4"] {
+            --num-cols: 4;
+        }
+
+        [data-columns="3"] {
+            --num-cols: 3;
+        }
+
+        [data-columns="2"] {
+            --num-cols: 2;
+        }
+
+        .multiplier-label {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 12px;
+            color: #fff;
+            background: rgba(0,0,0,0.7);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .cell.row-clicked .multiplier-label {
+            display: none;
+        }
+
+        .cell.row-unclicked {
+            opacity: 0.5;
+        }
+    </style>
+</head>
+<body>
+    <button onclick="window.location.href='hub.html'" class="back-button">← Back to Hub</button>
+    <h1>Towers Game</h1>
+    <div class="balance-display">Balance: $<span id="balance">1000.00</span></div>
+
+    <div class="game-container">
+        <div class="controls">
+            <div class="stats">
+                <div>
+                    <label>Bet Amount:</label>
+                    <input type="number" id="betInput" class="bet-input" value="10" min="0" max="1000" step="0.01">
+                </div>
+                <div>
+                    <label>Difficulty:</label>
+                    <select id="difficultyInput" class="bet-input">
+                        <option value="easy">Easy</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="hard">Hard</option>
+                        <option value="expert">Expert</option>
+                        <option value="crazy">Crazy</option>
+                    </select>
+                </div>
+                <div>Potential Win: $<span id="potentialWin">10.00</span></div>
+            </div>
+            <div id="errorMessage" class="error-message"></div>
+            <div class="action-button">
+                <button onclick="startGame()" id="startButton">Start Game</button>
+                <button onclick="cashOut()" id="cashoutButton" disabled style="display: none;">
+                    Cash Out (<span id="multiplier" class="multiplier">1.00x</span>)
+                </button>
+            </div>
+        </div>
+        
+        <div class="grid-container">
+            <div class="grid" id="grid" data-columns="3">
+                <div id="winPopup" class="win-popup">
+                    <div class="multiplier"></div>
+                    <div class="amount"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <button onclick="addBalance()" id="addBalanceButton">Add $500</button>
+
+    <script>
+        let gameActive = false;
+        let currentRow = 0;
+        let betAmount = 10;
+        let currentMultiplier = 1.00;
+        let numberOfRows = 8;
+        let balance = parseFloat(localStorage.getItem('balance')) || 1000.00;
+        let safePositions = [];
+        let clickedCells = new Set();
+        let difficulty = 'medium';
+        let numColumns = 3;
+        let numBombs = 1;
+
+        // Initialize elements
+        const betInput = document.getElementById('betInput');
+        const difficultyInput = document.getElementById('difficultyInput');
+        const errorMessage = document.getElementById('errorMessage');
+        const balanceDisplay = document.getElementById('balance');
+        const winPopup = document.getElementById('winPopup');
+        const startButton = document.getElementById('startButton');
+        const cashoutButton = document.getElementById('cashoutButton');
+        const grid = document.getElementById('grid');
+
+        // Initialize balance display
+        balanceDisplay.textContent = balance.toFixed(2);
+
+        function addBalance() {
+            balance += 500;
+            localStorage.setItem('balance', balance);
+            balanceDisplay.textContent = balance.toFixed(2);
+            updateStartButtonState();
+        }
+
+        function initializeGrid() {
+            grid.innerHTML = '';
+            grid.appendChild(winPopup);
+            grid.dataset.columns = numColumns;
+            
+            const difficultyMultipliers = {
+                easy: [1.84, 2.36, 3.02, 3.87, 4.95, 6.33, 8.11, 10.38],
+                medium: [2.07, 2.99, 4.30, 6.19, 8.92, 12.84, 18.49, 26.62],
+                hard: [2.76, 5.31, 10.19, 19.57, 37.57, 72.13, 138.50, 265.91],
+                expert: [4.15, 11.94, 34.40, 99.06, 285.29, 821.64, 2366.33, 6815.03],
+                crazy: [5.53, 21.23, 81.53, 313.08, 1202.22, 4616.52, 17727.45, 68073.42]
+            };
+            
+            for (let i = numberOfRows - 1; i >= 0; i--) {
+                const row = document.createElement('div');
+                row.className = 'row';
+                
+                for (let j = 0; j < numColumns; j++) {
+                    const cell = document.createElement('button');
+                    cell.className = 'cell';
+                    cell.dataset.row = i;
+                    cell.dataset.col = j;
+                    cell.onclick = () => handleCellClick(i, j);
+                    
+                    // Add multiplier label
+                    const multiplierLabel = document.createElement('div');
+                    multiplierLabel.className = 'multiplier-label';
+                    multiplierLabel.textContent = difficultyMultipliers[difficulty][i].toFixed(2) + 'x';
+                    cell.appendChild(multiplierLabel);
+                    
+                    row.appendChild(cell);
+                }
+                
+                grid.appendChild(row);
+            }
+        }
+
+        function startGame() {
+            const value = parseFloat(betInput.value);
+            if (value > balance) {
+                errorMessage.textContent = 'Insufficient balance';
+                return;
+            }
+
+            gameActive = true;
+            currentRow = 0;
+            currentMultiplier = 1.00;
+            betAmount = value;
+            clickedCells.clear();
+            
+            // Deduct bet from balance
+            balance -= value;
+            localStorage.setItem('balance', balance);
+            balanceDisplay.textContent = balance.toFixed(2);
+            
+            // Generate safe positions
+            safePositions = [];
+            for (let i = 0; i < numberOfRows; i++) {
+                let safeCount, bombCount;
+                switch(difficulty) {
+                    case 'easy':
+                        safeCount = 3;
+                        bombCount = 1;
+                        break;
+                    case 'medium':
+                        safeCount = 2;
+                        bombCount = 1;
+                        break;
+                    case 'hard':
+                        safeCount = 1;
+                        bombCount = 1;
+                        break;
+                    case 'expert':
+                        safeCount = 1;
+                        bombCount = 2;
+                        break;
+                    case 'crazy':
+                        safeCount = 1;
+                        bombCount = 3;
+                        break;
+                }
+
+                // Create array of all positions for this row
+                const positions = Array.from({length: numColumns}, (_, i) => i);
+                
+                // Shuffle the positions
+                for (let j = positions.length - 1; j > 0; j--) {
+                    const k = Math.floor(Math.random() * (j + 1));
+                    [positions[j], positions[k]] = [positions[k], positions[j]];
+                }
+                
+                // First safeCount positions are safe, rest are bombs
+                const safePosForRow = new Set(positions.slice(0, safeCount));
+                safePositions.push(safePosForRow);
+            }
+            
+            // Reset UI
+            initializeGrid();
+            winPopup.style.display = 'none';
+            updateStats();
+            
+            // Update buttons
+            startButton.style.display = 'none';
+            cashoutButton.style.display = 'flex';
+            cashoutButton.disabled = false;
+            betInput.disabled = true;
+            difficultyInput.disabled = true;
+            
+            // Disable upper rows
+            disableUpperRows();
+        }
+
+        function handleCellClick(row, col) {
+            if (!gameActive || row !== currentRow) return;
+
+            const cell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+            clickedCells.add(`${row},${col}`);
+            
+            // Add row-clicked class to all cells in current row
+            const rowCells = document.querySelectorAll(`[data-row="${row}"]`);
+            rowCells.forEach(cell => {
+                cell.classList.add('row-clicked');
+            });
+
+            // Add row-unclicked class to unclicked cells in current row
+            rowCells.forEach(cell => {
+                if (!clickedCells.has(`${row},${cell.dataset.col}`)) {
+                    cell.classList.add('row-unclicked');
+                }
+            });
+            
+            if (safePositions[row].has(col)) {
+                // Correct choice
+                cell.classList.add('revealed', 'win');
+                cell.innerHTML = '💎';
+                currentRow++;
+                currentMultiplier = calculateMultiplier(currentRow);
+                updateStats();
+                
+                if (currentRow === numberOfRows) {
+                    // Reached the top
+                    cashOut();
+                } else {
+                    disableUpperRows();
+                }
+            } else {
+                // Wrong choice
+                cell.classList.add('revealed', 'lose');
+                cell.innerHTML = '💣';
+                gameOver();
+            }
+        }
+
+        function disableUpperRows() {
+            const cells = document.querySelectorAll('.cell');
+            cells.forEach(cell => {
+                const row = parseInt(cell.dataset.row);
+                if (row > currentRow) {
+                    cell.classList.add('disabled');
+                } else {
+                    cell.classList.remove('disabled');
+                }
+            });
+        }
+
+        function calculateMultiplier(level) {
+            const difficultyMultipliers = {
+                easy: [1.84, 2.36, 3.02, 3.87, 4.95, 6.33, 8.11, 10.38],
+                medium: [2.07, 2.99, 4.30, 6.19, 8.92, 12.84, 18.49, 26.62],
+                hard: [2.76, 5.31, 10.19, 19.57, 37.57, 72.13, 138.50, 265.91],
+                expert: [4.15, 11.94, 34.40, 99.06, 285.29, 821.64, 2366.33, 6815.03],
+                crazy: [5.53, 21.23, 81.53, 313.08, 1202.22, 4616.52, 17727.45, 68073.42]
+            };
+            return difficultyMultipliers[difficulty][level - 1] || 1.00;
+        }
+
+        function gameOver() {
+            gameActive = false;
+            revealAllPositions();
+            resetGameUI();
+        }
+
+        function cashOut() {
+            if (!gameActive || currentMultiplier === 1.00) return;
+            
+            gameActive = false;
+            const winAmount = betAmount * currentMultiplier;
+            balance += winAmount;
+            localStorage.setItem('balance', balance);
+            balanceDisplay.textContent = balance.toFixed(2);
+            
+            revealAllPositions();
+            resetGameUI();
+
+            // Show win popup
+            winPopup.style.display = 'flex';
+            winPopup.querySelector('.multiplier').textContent = currentMultiplier.toFixed(2) + 'x';
+            winPopup.querySelector('.amount').textContent = '$' + winAmount.toFixed(2);
+        }
+
+        function revealAllPositions() {
+            for (let i = 0; i < numberOfRows; i++) {
+                for (let j = 0; j < numColumns; j++) {
+                    const cellKey = `${i},${j}`;
+                    const cell = document.querySelector(`[data-row="${i}"][data-col="${j}"]`);
+                    
+                    if (clickedCells.has(cellKey)) {
+                        // Keep the existing styling for clicked cells
+                        continue;
+                    }
+                    
+                    cell.classList.add('revealed', 'unclicked');
+                    if (safePositions[i].has(j)) {
+                        cell.innerHTML = '💎';
+                    } else {
+                        cell.innerHTML = '💣';
+                    }
+                }
+            }
+        }
+
+        function resetGameUI() {
+            startButton.style.display = 'flex';
+            cashoutButton.style.display = 'none';
+            betInput.disabled = false;
+            difficultyInput.disabled = false;
+            updateStartButtonState();
+        }
+
+        function updateStats() {
+            const multiplierSpan = document.getElementById('multiplier');
+            const potentialWinSpan = document.getElementById('potentialWin');
+            
+            if (multiplierSpan) {
+                multiplierSpan.textContent = currentMultiplier.toFixed(2) + 'x';
+            }
+            
+            if (potentialWinSpan) {
+                potentialWinSpan.textContent = (betAmount * currentMultiplier).toFixed(2);
+            }
+            
+            if (gameActive && cashoutButton) {
+                cashoutButton.innerHTML = `Cash Out ${currentMultiplier.toFixed(2)}x`;
+            }
+        }
+
+        function updateStartButtonState() {
+            const betValue = parseFloat(betInput.value);
+            startButton.disabled = gameActive || balance < betValue || isNaN(betValue);
+        }
+
+        // Initialize the game
+        initializeGrid();
+
+        // Add event listeners
+        betInput.addEventListener('input', function() {
+            const value = parseFloat(this.value);
+            if (value < 0 || value > 1000) {
+                errorMessage.textContent = 'Bet amount must be between $0 and $1000';
+                startButton.disabled = true;
+            } else if (isNaN(value)) {
+                errorMessage.textContent = 'Please enter a valid number';
+                startButton.disabled = true;
+            } else if (value > balance) {
+                errorMessage.textContent = 'Insufficient balance';
+                startButton.disabled = true;
+            } else {
+                errorMessage.textContent = '';
+                updateStartButtonState();
+                betAmount = value;
+                updateStats();
+            }
+        });
+
+        difficultyInput.addEventListener('change', function() {
+            difficulty = this.value;
+            switch(difficulty) {
+                case 'easy':
+                    numColumns = 4;
+                    numBombs = 1;
+                    break;
+                case 'medium':
+                    numColumns = 3;
+                    numBombs = 1;
+                    break;
+                case 'hard':
+                    numColumns = 2;
+                    numBombs = 1;
+                    break;
+                case 'expert':
+                    numColumns = 3;
+                    numBombs = 2;
+                    break;
+                case 'crazy':
+                    numColumns = 4;
+                    numBombs = 3;
+                    break;
+            }
+            initializeGrid();
+            updateStats();
+        });
+    </script>
+</body>
+</html>

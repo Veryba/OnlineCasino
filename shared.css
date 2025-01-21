@@ -1,0 +1,153 @@
+body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: #1a1a1a;
+    color: white;
+    font-family: Arial, sans-serif;
+}
+
+.game-container {
+    text-align: center;
+    margin: 20px;
+    position: relative;
+    display: flex;
+    gap: 40px;
+    align-items: flex-start;
+}
+
+.controls {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    align-items: flex-start;
+    min-width: 200px;
+}
+
+.stats {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    align-items: flex-start;
+    margin-bottom: 20px;
+}
+
+.balance-display {
+    font-size: 18px;
+    margin-bottom: 20px;
+}
+
+/* Common button styles */
+button {
+    background: #4CAF50;
+    border: none;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    width: 100%;
+}
+
+button:disabled {
+    background: #666;
+    cursor: not-allowed;
+}
+
+/* Back button specific style */
+.back-button {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    background: #2d2d2d;
+    width: auto;
+    transition: background-color 0.3s;
+}
+
+.back-button:hover {
+    background: #3d3d3d;
+}
+
+/* Add balance button specific style */
+#addBalanceButton {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    width: auto;
+}
+
+/* Input styles */
+.bet-input {
+    background: #2d2d2d;
+    border: 2px solid #4CAF50;
+    color: white;
+    padding: 8px;
+    border-radius: 8px;
+    width: 100%;
+    font-size: 16px;
+    text-align: center;
+}
+
+.bet-input:focus {
+    outline: none;
+    border-color: #45a049;
+}
+
+.bet-input:invalid {
+    border-color: #ff4444;
+}
+
+/* Remove spinner from number inputs */
+.bet-input::-webkit-outer-spin-button,
+.bet-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* Error message style */
+.error-message {
+    color: #ff4444;
+    font-size: 14px;
+    margin-top: 5px;
+    height: 20px;
+}
+
+/* Win popup style */
+.win-popup {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.9);
+    border: 2px solid #4CAF50;
+    padding: 20px 10px;
+    border-radius: 10px;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    z-index: 100;
+    width: 160px;
+}
+
+.win-popup .multiplier {
+    font-size: 32px;
+}
+
+.win-popup .amount {
+    font-size: 24px;
+    color: #4CAF50;
+}
+
+.multiplier {
+    color: #4CAF50;
+    font-weight: bold;
+}
+
+.action-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+}

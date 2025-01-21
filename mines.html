@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mines Game</title>
+    <style>
+        @import url('shared.css');
+
+        .game-container {
+            display: flex;
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            gap: 20px;
+        }
+
+        .controls {
+            flex: 0 0 25%;
+            padding: 20px;
+            background: #1d1d1d;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .grid-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 5px;
+            margin: 0;
+            width: 500px;
+            height: 500px;
+            justify-content: center;
+            position: relative;
+        }
+
+        .cell {
+            width: 95px;
+            height: 95px;
+            background: #2d2d2d;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+        }
+
+        .cell:hover {
+            background: #3d3d3d;
+        }
+
+        .cell.revealed {
+            background: #404040;
+        }
+
+        .cell.mine {
+            background: #404040;
+        }
+
+        .cell.mine.hit {
+            background: #ff4444;
+        }
+
+        .cell.gem {
+            background: #404040;
+        }
+
+        .cell.gem.clicked {
+            background: #44ff44;
+        }
+
+        .max-bet-button {
+            padding: 5px 10px;
+            background: #3d3d3d;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .max-bet-button:hover {
+            background: #4d4d4d;
+        }
+    </style>
+</head>
+<body>
+    <button onclick="window.location.href='hub.html'" class="back-button">← Back to Hub</button>
+    <h1>Mines Game</h1>
+    <div class="balance-display">Balance: $<span id="balance">1000.00</span></div>
+
+    <div class="game-container">
+        <div class="controls">
+            <div class="stats">
+                <div>
+                    <label>Bet Amount:</label>
+                    <div style="display: flex; gap: 5px; align-items: center;">
+                        <input type="number" id="betInput" class="bet-input" value="10" min="0" max="1000" step="0.01">
+                        <button onclick="setMaxBet()" class="max-bet-button">Max</button>
+                    </div>
+                </div>
+                <div>
+                    <label>Number of Mines:</label>
+                    <select id="minesInput" class="bet-input">
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                        <option value="5" selected>5</option>
+                        <option value="6">6</option>
+                        <option value="7">7</option>
+                        <option value="8">8</option>
+                        <option value="9">9</option>
+                        <option value="10">10</option>
+                        <option value="11">11</option>
+                        <option value="12">12</option>
+                        <option value="13">13</option>
+                        <option value="14">14</option>
+                        <option value="15">15</option>
+                        <option value="16">16</option>
+                        <option value="17">17</option>
+                        <option value="18">18</option>
+                        <option value="19">19</option>
+                        <option value="20">20</option>
+                        <option value="21">21</option>
+                        <option value="22">22</option>
+                        <option value="23">23</option>
+                        <option value="24">24</option>
+                    </select>
+                </div>
+                <button onclick="pickRandomTile()" id="randomTileButton" disabled>Pick Random Tile</button>
+                <div>Potential Win: $<span id="potentialWin">10.00</span></div>
+            </div>
+            <div id="errorMessage" class="error-message"></div>
+            <div class="action-button">
+                <button onclick="startGame()" id="startButton">Start Game</button>
+                <button onclick="cashOut()" id="cashoutButton" disabled style="display: none;">
+                    Cash Out (<span id="multiplier" class="multiplier">1.00x</span>)
+                </button>
+            </div>
+        </div>
+        
+        <div class="grid-container">
+            <div class="grid" id="grid">
+                <div id="winPopup" class="win-popup">
+                    <div class="multiplier"></div>
+                    <div class="amount"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <button onclick="addBalance()" id="addBalanceButton">Add $500</button> <!-- TODO: Remove this button for production -->
+
+    <script>
+        const GRID_SIZE = 25;
+        let gameActive = false;
+        let minePositions = [];
+        let revealedCells = [];
+        let betAmount = 10;
+        let currentMultiplier = 1.00;
+        let numberOfMines = 5;
+        let balance = parseFloat(localStorage.getItem('balance')) || 1000.00;
+
+        // Set up bet input validation
+        const betInput = document.getElementById('betInput');
+        const minesInput = document.getElementById('minesInput');
+        const errorMessage = document.getElementById('errorMessage');
+        const balanceDisplay = document.getElementById('balance');
+        const winPopup = document.getElementById('winPopup');
+        const startButton = document.getElementById('startButton');
+        const cashoutButton = document.getElementById('cashoutButton');
+
+        // Initialize balance display
+        balanceDisplay.textContent = balance.toFixed(2);
+
+        function addBalance() { // TODO: Remove this function for production
+            balance += 500;
+            localStorage.setItem('balance', balance);
+            balanceDisplay.textContent = balance.toFixed(2);
+            updateStartButtonState();
+        }
+
+        betInput.addEventListener('input', function() {
+            const value = parseFloat(this.value);
+            if (value < 0) {
+                errorMessage.textContent = 'Bet amount must be over $0';
+                startButton.disabled = true;
+            } else if (isNaN(value)) {
+                errorMessage.textContent = 'Please enter a valid number';
+                startButton.disabled = true;
+            } else if (value > balance) {
+                errorMessage.textContent = 'Insufficient balance';
+                startButton.disabled = true;
+            } else {
+                errorMessage.textContent = '';
+                updateStartButtonState();
+                betAmount = value;
+                updateStats();
+            }
+        });
+
+        minesInput.addEventListener('change', function() {
+            const value = parseInt(this.value);
+            if (value < 1 || value > 24) {
+                errorMessage.textContent = 'Number of mines must be between 1 and 24';
+                startButton.disabled = true;
+            } else {
+                errorMessage.textContent = '';
+                updateStartButtonState();
+                numberOfMines = value;
+                updateStats();
+            }
+        });
+
+        function pickRandomTile() {
+            if (!gameActive) return;
+            
+            const unrevealedCells = [];
+            for (let i = 0; i < GRID_SIZE; i++) {
+                if (!revealedCells.includes(i)) {
+                    unrevealedCells.push(i);
+                }
+            }
+            
+            if (unrevealedCells.length > 0) {
+                const randomIndex = Math.floor(Math.random() * unrevealedCells.length);
+                revealCell(unrevealedCells[randomIndex]);
+            }
+        }
+        
+        function updateStartButtonState() {
+            const betValue = parseFloat(betInput.value);
+            startButton.disabled = gameActive || balance < betValue || isNaN(betValue);
+        }
+
+        function initializeGrid() {
+            const grid = document.getElementById('grid');
+            grid.innerHTML = '';
+            winPopup.style.display = 'none';
+            
+            grid.appendChild(winPopup);
+            
+            for (let i = 0; i < GRID_SIZE; i++) {
+                const cell = document.createElement('button');
+                cell.className = 'cell';
+                cell.dataset.index = i;
+                cell.onclick = () => revealCell(i);
+                grid.appendChild(cell);
+            }
+        }
+        
+        function startGame() {
+            const value = parseFloat(betInput.value);
+            if (isNaN(value) || value < 0) {
+                errorMessage.textContent = 'Please enter a valid bet amount between $0 and $1000';
+                return;
+            }
+            if (value > balance) {
+                errorMessage.textContent = 'Insufficient balance';
+                return;
+            }
+
+            // Reset game state
+            gameActive = true;
+            revealedCells = [];
+            currentMultiplier = 1.00;
+            betAmount = value;
+            numberOfMines = Math.max(1, parseInt(minesInput.value)); // Ensure at least 1 mine
+            
+            // Deduct bet from balance
+            balance -= value;
+            localStorage.setItem('balance', balance);
+            balanceDisplay.textContent = balance.toFixed(2);
+            
+            // Reset UI
+            initializeGrid();
+            winPopup.style.display = 'none';
+            updateStats();
+            
+            // Generate mine positions
+            minePositions = [];
+            while (minePositions.length < numberOfMines) {
+                const position = Math.floor(Math.random() * GRID_SIZE);
+                if (!minePositions.includes(position)) {
+                    minePositions.push(position);
+                }
+            }
+            
+            // Update buttons
+            startButton.style.display = 'none';
+            cashoutButton.style.display = 'flex';
+            cashoutButton.disabled = false;
+            document.getElementById('randomTileButton').disabled = false;
+            betInput.disabled = true;
+            minesInput.disabled = true;
+            
+            // Update cashout button text
+            updateStats();
+        }
+        
+        function revealCell(index) {
+            if (!gameActive || revealedCells.includes(index)) return;
+            
+            const cell = document.querySelector(`[data-index="${index}"]`);
+            
+            if (minePositions.includes(index)) {
+                // Hit a mine
+                gameActive = false;
+                cell.classList.add('revealed', 'mine', 'hit');
+                cell.innerHTML = '💣';
+                revealAllMines(index);
+                revealAllGems();
+                fadeUnclickedCells(index); // Pass the hit mine index
+                startButton.style.display = 'flex';
+                cashoutButton.style.display = 'none';
+                updateStartButtonState();
+                cashoutButton.disabled = true;
+                document.getElementById('randomTileButton').disabled = true;
+                betInput.disabled = false;
+                minesInput.disabled = false;
+            } else {
+                // Found a gem
+                cell.classList.add('revealed', 'gem', 'clicked');
+                cell.innerHTML = '💰';
+                revealedCells.push(index);
+                
+                // Update multiplier
+                currentMultiplier = calculateMultiplier(revealedCells.length);
+                updateStats();
+
+                // Check if all gems are revealed
+                const totalGems = GRID_SIZE - numberOfMines;
+                if (revealedCells.length === totalGems) {
+                    revealAllMines();
+                    revealAllGems();
+                    cashOut();
+                }
+            }
+        }
+        
+        function revealAllMines(hitIndex = null) {
+            minePositions.forEach(position => {
+                if (position !== hitIndex) {
+                    const cell = document.querySelector(`[data-index="${position}"]`);
+                    cell.classList.add('revealed', 'mine');
+                    cell.innerHTML = '💣';
+                }
+            });
+        }
+
+        function revealAllGems() {
+            for (let i = 0; i < GRID_SIZE; i++) {
+                if (!minePositions.includes(i) && !revealedCells.includes(i)) {
+                    const cell = document.querySelector(`[data-index="${i}"]`);
+                    cell.classList.add('revealed', 'gem');
+                    cell.innerHTML = '💰';
+                }
+            }
+        }
+        
+        function cashOut() {
+            if (!gameActive || currentMultiplier === 1.00) return;
+            
+            gameActive = false;
+            const winAmount = betAmount * currentMultiplier;
+            balance += winAmount;
+            localStorage.setItem('balance', balance);
+            balanceDisplay.textContent = balance.toFixed(2);
+            
+            // Reveal all mines and gems
+            revealAllMines();
+            revealAllGems();
+            fadeUnclickedCells();
+            
+            startButton.style.display = 'flex';
+            cashoutButton.style.display = 'none';
+            updateStartButtonState();
+            cashoutButton.disabled = true;
+            document.getElementById('randomTileButton').disabled = true;
+            betInput.disabled = false;
+            minesInput.disabled = false;
+
+            // Show win popup
+            winPopup.style.display = 'flex';
+            winPopup.querySelector('.multiplier').textContent = currentMultiplier.toFixed(2) + 'x';
+            winPopup.querySelector('.amount').textContent = '$' + winAmount.toFixed(2);
+        }
+
+        // Modified fadeUnclickedCells function
+        function fadeUnclickedCells(hitIndex = null) {
+            const cells = document.querySelectorAll('.cell');
+            cells.forEach(cell => {
+                const index = parseInt(cell.dataset.index);
+                if (!revealedCells.includes(index) && index !== hitIndex) {
+                    cell.style.opacity = '0.5';
+                }
+            });
+        }
+        
+        function calculateMultiplier(revealedCount) {
+            const multipliersByMines = {
+                1: [1.03, 1.08, 1.12, 1.18, 1.24, 1.30, 1.37, 1.46, 1.55, 1.65,
+                    1.77, 1.90, 2.06, 2.25, 2.47, 2.75, 3.09, 3.54, 4.12, 4.95,
+                    6.19, 8.25, 12.37, 24.75],
+                2: [1.08, 1.17, 1.29, 1.41, 1.56, 1.74, 1.94, 2.18, 2.47, 2.83,
+                    3.26, 3.81, 4.50, 5.40, 6.60, 8.25, 10.61, 14.14, 19.80, 29.70,
+                    49.50, 99.00, 297.00],
+                3: [1.12, 1.29, 1.48, 1.71, 2.00, 2.35, 2.79, 3.35, 4.07, 5.00,
+                    6.26, 7.96, 10.35, 13.80, 18.97, 27.11, 40.66, 65.06, 113.85, 227.70,
+                    569.25, 2277.00],
+                4: [1.18, 1.41, 1.71, 2.09, 2.58, 3.23, 4.09, 5.26, 6.88, 9.17,
+                    12.51, 17.52, 25.30, 37.95, 59.64, 99.39, 178.91, 357.81, 834.90, 2504.70,
+                    12523.50],
+                5: [1.24, 1.56, 2.00, 2.58, 3.39, 4.52, 6.14, 8.50, 12.04, 17.52,
+                    26.27, 40.87, 66.41, 113.85, 208.72, 417.45, 939.26, 2504.70, 8766.45, 52598.70],
+                6: [1.30, 1.74, 2.35, 3.23, 4.52, 6.46, 9.44, 14.17, 21.89, 35.03,
+                    58.38, 102.17, 189.75, 379.50, 834.90, 2087.25, 6261.75, 25047.00, 175329.00],
+                7: [1.37, 1.94, 2.79, 4.09, 6.14, 9.44, 14.95, 24.47, 41.60, 73.95,
+                    138.66, 277.33, 600.87, 1442.10, 3965.77, 13219.25, 59486.62, 475893.00],
+                8: [1.46, 2.18, 3.35, 5.26, 8.50, 14.17, 24.47, 44.05, 83.20, 166.40,
+                    356.56, 831.98, 2163.15, 6489.45, 23794.65, 118973.25, 1070759.25],
+                9: [1.55, 2.47, 4.07, 6.88, 12.04, 21.89, 41.60, 83.20, 176.80, 404.10,
+                    1010.26, 2828.73, 9193.39, 36773.55, 202254.52, 2022545.25],
+                10: [1.65, 2.83, 5.00, 9.17, 17.52, 35.03, 73.95, 166.40, 404.10, 1077.61,
+                    3232.84, 11314.94, 49031.40, 294188.40, 3236072.40],
+                11: [1.77, 3.26, 6.26, 12.51, 26.27, 58.38, 138.66, 356.56, 1010.26, 3232.84,
+                    12123.15, 56574.69, 367735.50, 4412826.00],
+                12: [1.90, 3.81, 7.96, 17.52, 40.87, 102.17, 277.33, 831.98, 2828.73, 11314.94,
+                    56574.69, 396022.85, 5148297.00],
+                13: [2.06, 4.50, 10.35, 25.30, 66.41, 189.75, 600.87, 2163.15, 9193.39, 49031.40,
+                    367735.50, 5148297.00],
+                14: [2.25, 5.40, 13.80, 37.95, 113.85, 379.50, 1442.10, 6489.45, 36773.55, 294188.40,
+                    4412826.00],
+                15: [2.47, 6.60, 18.97, 59.64, 208.72, 834.90, 3965.77, 23794.65, 202254.52, 3236072.40],
+                16: [2.75, 8.25, 27.11, 99.39, 417.45, 2087.25, 13219.25, 118973.25, 2022545.25],
+                17: [3.09, 10.61, 40.66, 178.91, 939.26, 6261.75, 59486.62, 1070759.25],
+                18: [3.54, 14.14, 65.06, 357.81, 2504.70, 2504.70, 475893.00],
+                19: [4.12, 19.80, 113.85, 834.90, 8766.45, 175329.00],
+                20: [4.95, 29.70, 227.70, 2504.70, 52598.70],
+                21: [6.19, 49.50, 569.25, 12523.50],
+                22: [8.25, 99.00, 2277.00],
+                23: [12.37, 297.00],
+                24: [24.75]
+            };
+            
+            const multipliers = multipliersByMines[numberOfMines] || multipliersByMines[1];
+            return revealedCount > 0 ? multipliers[revealedCount - 1] : 1.00;
+        }
+        
+        function updateStats() {
+            const multiplierSpan = document.getElementById('multiplier');
+            const potentialWinSpan = document.getElementById('potentialWin');
+            
+            if (multiplierSpan) {
+                multiplierSpan.textContent = currentMultiplier.toFixed(2) + 'x';
+            }
+            
+            if (potentialWinSpan) {
+                potentialWinSpan.textContent = (betAmount * currentMultiplier).toFixed(2);
+            }
+            
+            if (gameActive && cashoutButton) {
+                cashoutButton.innerHTML = `Cash Out ${currentMultiplier.toFixed(2)}x`;
+            }
+        }
+        
+        function setMaxBet() {
+            betInput.value = balance.toFixed(2);
+            betInput.dispatchEvent(new Event('input'));
+            betAmount = balance;
+            updateStats();
+        }
+        
+        // Initialize the game
+        initializeGrid();
+    </script>
+</body>
+</html>
