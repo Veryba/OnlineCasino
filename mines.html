@@ -5,31 +5,6 @@
     <style>
         @import url('shared.css');
 
-        .game-container {
-            display: flex;
-            width: 100%;
-            max-width: 1200px;
-            margin: 0 auto;
-            gap: 20px;
-        }
-
-        .controls {
-            flex: 0 0 25%;
-            padding: 20px;
-            background: #1d1d1d;
-            border-radius: 8px;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .grid-container {
-            flex: 1;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-        }
-
         .grid {
             display: grid;
             grid-template-columns: repeat(5, 1fr);
@@ -95,51 +70,54 @@
     </style>
 </head>
 <body>
+    <img src="thumbnails/Logo.png" alt="Staka" style="height: 100px; margin: 20px 0; filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.7));">
     <button onclick="window.location.href='hub.html'" class="back-button">← Back to Hub</button>
-    <h1>Mines Game</h1>
     <div class="balance-display">Balance: $<span id="balance">1000.00</span></div>
 
     <div class="game-container">
         <div class="controls">
-            <div class="stats">
-                <div>
-                    <label>Bet Amount:</label>
-                    <div style="display: flex; gap: 5px; align-items: center;">
-                        <input type="number" id="betInput" class="bet-input" value="10" min="0" max="1000" step="0.01">
-                        <button onclick="setMaxBet()" class="max-bet-button">Max</button>
-                    </div>
+            <div>
+                <label>Bet Amount:</label>
+                <div class="bet-controls">
+                    <input type="number" id="betInput" class="bet-input" value="10" min="0" max="1000" step="0.01">
+                    <button onclick="adjustBet(0.5)" class="bet-button">½×</button>
+                    <button onclick="adjustBet(2)" class="bet-button">2×</button>
+                    <button onclick="setMaxBet()" class="bet-button">Max</button>
                 </div>
-                <div>
-                    <label>Number of Mines:</label>
-                    <select id="minesInput" class="bet-input">
-                        <option value="1">1</option>
-                        <option value="2">2</option>
-                        <option value="3">3</option>
-                        <option value="4">4</option>
-                        <option value="5" selected>5</option>
-                        <option value="6">6</option>
-                        <option value="7">7</option>
-                        <option value="8">8</option>
-                        <option value="9">9</option>
-                        <option value="10">10</option>
-                        <option value="11">11</option>
-                        <option value="12">12</option>
-                        <option value="13">13</option>
-                        <option value="14">14</option>
-                        <option value="15">15</option>
-                        <option value="16">16</option>
-                        <option value="17">17</option>
-                        <option value="18">18</option>
-                        <option value="19">19</option>
-                        <option value="20">20</option>
-                        <option value="21">21</option>
-                        <option value="22">22</option>
-                        <option value="23">23</option>
-                        <option value="24">24</option>
-                    </select>
-                </div>
-                <button onclick="pickRandomTile()" id="randomTileButton" disabled>Pick Random Tile</button>
-                <div>Potential Win: $<span id="potentialWin">10.00</span></div>
+            </div>
+            <div>
+                <label>Number of Mines:</label>
+                <select id="minesInput" class="bet-input">
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5" selected>5</option>
+                    <option value="6">6</option>
+                    <option value="7">7</option>
+                    <option value="8">8</option>
+                    <option value="9">9</option>
+                    <option value="10">10</option>
+                    <option value="11">11</option>
+                    <option value="12">12</option>
+                    <option value="13">13</option>
+                    <option value="14">14</option>
+                    <option value="15">15</option>
+                    <option value="16">16</option>
+                    <option value="17">17</option>
+                    <option value="18">18</option>
+                    <option value="19">19</option>
+                    <option value="20">20</option>
+                    <option value="21">21</option>
+                    <option value="22">22</option>
+                    <option value="23">23</option>
+                    <option value="24">24</option>
+                </select>
+            </div>
+            <button onclick="pickRandomTile()" id="randomTileButton" disabled>Pick Random Tile</button>
+            <div class="potential-win">
+                <label>Potential Win:</label>
+                <div class="potential-win-amount">$<span id="potentialWin">0.00</span></div>
             </div>
             <div id="errorMessage" class="error-message"></div>
             <div class="action-button">
@@ -329,6 +307,7 @@
                 document.getElementById('randomTileButton').disabled = true;
                 betInput.disabled = false;
                 minesInput.disabled = false;
+                document.getElementById('potentialWin').textContent = '0.00';
             } else {
                 // Found a gem
                 cell.classList.add('revealed', 'gem', 'clicked');
@@ -395,6 +374,7 @@
             winPopup.style.display = 'flex';
             winPopup.querySelector('.multiplier').textContent = currentMultiplier.toFixed(2) + 'x';
             winPopup.querySelector('.amount').textContent = '$' + winAmount.toFixed(2);
+            document.getElementById('potentialWin').textContent = '0.00';
         }
 
         // Modified fadeUnclickedCells function
@@ -480,6 +460,14 @@
             betInput.dispatchEvent(new Event('input'));
             betAmount = balance;
             updateStats();
+        }
+
+        function adjustBet(multiplier) {
+            const currentBet = parseFloat(betInput.value) || 0;
+            let newBet = currentBet * multiplier;
+            newBet = Math.min(Math.max(0, newBet), balance);
+            betInput.value = newBet.toFixed(2);
+            betInput.dispatchEvent(new Event('input'));
         }
         
         // Initialize the game

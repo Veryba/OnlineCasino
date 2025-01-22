@@ -47,6 +47,19 @@ body {
     animation: float 3s ease-in-out infinite;
 }
 
+.balance-display {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #1d1d1d;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 18px;
+    font-weight: bold;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+}
+
 @keyframes float {
     0%, 100% { transform: translateY(0); }
     50% { transform: translateY(-5px); }
@@ -259,6 +272,7 @@ body {
 .cell {
     position: relative;
     overflow: hidden;
+    z-index: 1; /* Base z-index for all cells */
 }
 
 .cell::after {
@@ -297,4 +311,179 @@ body {
 
 @keyframes shimmer {
     100% { left: 100%; }
+}
+
+/* Enhanced select styling */
+select.bet-input {
+    background: #2d2d2d;
+    color: white;
+    border: 2px solid transparent;
+    padding: 8px;
+    border-radius: 8px;
+    width: 100%;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+/* Style for the options within the select */
+select.bet-input option {
+    background: #2d2d2d;
+    color: white;
+}
+
+select.bet-input:focus {
+    border-color: #4CAF50;
+    box-shadow: 0 0 15px rgba(76, 175, 80, 0.3);
+    outline: none;
+}
+
+/* Click animations for cells */
+@keyframes cellClick {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(0.9);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+@keyframes revealGem {
+    0% {
+        transform: scale(0.5);
+        opacity: 0;
+    }
+    50% {
+        transform: scale(1.2);
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+@keyframes revealMine {
+    0% {
+        transform: scale(1);
+    }
+    20% {
+        transform: scale(1.2);
+    }
+    40% {
+        transform: scale(0.8);
+    }
+    60% {
+        transform: rotate(15deg);
+    }
+    80% {
+        transform: rotate(-15deg);
+    }
+    100% {
+        transform: scale(1) rotate(0);
+    }
+}
+
+.cell.clicked {
+    animation: cellClick 0.3s ease-out;
+}
+
+.cell.revealed.gem.clicked,
+.cell.revealed.win {
+    animation: revealGem 0.4s ease-out;
+}
+
+.cell.revealed.mine.hit,
+.cell.revealed.lose {
+    animation: revealMine 0.5s ease-out;
+}
+
+/* Prevent hover effect during animations */
+.cell.clicked:hover,
+.cell.revealed:hover {
+    transform: none;
+}
+
+/* When animating, bring the cell to front */
+.cell.clicked,
+.cell.revealed.mine.hit,
+.cell.revealed.lose,
+.cell.revealed.gem.clicked,
+.cell.revealed.win {
+    z-index: 2; /* Higher z-index during animation */
+}
+
+@keyframes shakeDice {
+    0% { transform: rotate(0deg); }
+    20% { transform: rotate(15deg); }
+    40% { transform: rotate(-15deg); }
+    60% { transform: rotate(15deg); }
+    80% { transform: rotate(-15deg); }
+    100% { transform: rotate(0deg); }
+}
+
+.dice-display {
+    font-size: 64px;
+    margin: 0;
+    line-height: 1;
+}
+
+.dice-display.rolling {
+    animation: shakeDice 0.5s ease-out;
+}
+
+/* Updated bet controls styling */
+.bet-controls {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+    width: 100%;
+}
+
+.bet-input {
+    flex: 1;
+    min-width: 100px; /* Increased from default */
+    padding: 8px 12px;
+    background: #2d2d2d;
+    border: none;
+    border-radius: 4px;
+    color: white;
+    font-size: 16px;
+}
+
+.bet-button {
+    padding: 8px 12px;
+    background: #2d2d2d;
+    border: none;
+    border-radius: 4px;
+    color: white;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    width: 60px; /* Fixed width for bet adjustment buttons */
+}
+
+.bet-button:hover {
+    background: #4CAF50;
+}
+
+/* Style for potential win display */
+.potential-win {
+    background: linear-gradient(145deg, #2d2d2d, #252525);
+    padding: 12px 15px;
+    border-radius: 8px;
+    margin: 10px 0;
+}
+
+.potential-win label {
+    color: #888;
+    font-size: 14px;
+    display: block;
+    margin-bottom: 4px;
+}
+
+.potential-win-amount {
+    color: #4CAF50;
+    font-size: 20px;
+    font-weight: bold;
 }

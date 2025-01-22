@@ -5,38 +5,13 @@
     <style>
         @import url('shared.css');
 
-        .game-container {
-            display: flex;
-            width: 100%;
-            max-width: 1200px;
-            margin: 0 auto;
-            gap: 20px;
-        }
-
-        .controls {
-            flex: 0 0 25%;
-            padding: 20px;
-            background: #1d1d1d;
-            border-radius: 8px;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .grid-container {
-            flex: 1;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-        }
-
         .grid {
             margin: 0;
             display: grid;
             grid-template-columns: repeat(var(--num-cols), 1fr);
-            gap: 5px;
-            width: 335px; /* Fixed width for all difficulties */
-            height: 670px; /* Fixed height based on 8 rows with 5px gaps */
+            gap: 10px;
+            width: 500px; /* Increased from 335px */
+            height: 600px; /* Reduced from 670px to fit screen better */
             justify-content: center;
             position: relative;
         }
@@ -47,7 +22,7 @@
 
         .cell {
             width: 100%;
-            height: 80px; /* Fixed height for all cells */
+            height: 65px; /* Reduced from 80px to fit screen */
             background: #2d2d2d;
             border: none;
             border-radius: 8px;
@@ -100,11 +75,13 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            font-size: 12px;
-            color: #fff;
-            background: rgba(0,0,0,0.7);
-            padding: 2px 6px;
-            border-radius: 4px;
+            font-size: 14px;
+            color: #ffffff;
+            background: linear-gradient(135deg, #47474700, #4b4b4b00);
+            padding: 4px 8px;
+            border-radius: 12px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+            font-weight: bold;
         }
 
         .cell.row-clicked .multiplier-label {
@@ -114,31 +91,47 @@
         .cell.row-unclicked {
             opacity: 0.5;
         }
+
+        /* Update grid container to ensure proper centering and scrolling */
+        .grid-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 600px;
+            padding: 20px;
+            overflow: visible;
+        }
     </style>
 </head>
 <body>
+    <img src="thumbnails/Logo.png" alt="Staka" style="height: 100px; margin: 20px 0; filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.7));">
     <button onclick="window.location.href='hub.html'" class="back-button">← Back to Hub</button>
-    <h1>Towers Game</h1>
     <div class="balance-display">Balance: $<span id="balance">1000.00</span></div>
 
     <div class="game-container">
         <div class="controls">
-            <div class="stats">
-                <div>
-                    <label>Bet Amount:</label>
+            <div>
+                <label>Bet Amount:</label>
+                <div class="bet-controls">
                     <input type="number" id="betInput" class="bet-input" value="10" min="0" max="1000" step="0.01">
+                    <button onclick="adjustBet(0.5)" class="bet-button">½×</button>
+                    <button onclick="adjustBet(2)" class="bet-button">2×</button>
+                    <button onclick="setMaxBet()" class="bet-button">Max</button>
                 </div>
-                <div>
-                    <label>Difficulty:</label>
-                    <select id="difficultyInput" class="bet-input">
-                        <option value="easy">Easy</option>
-                        <option value="medium" selected>Medium</option>
-                        <option value="hard">Hard</option>
-                        <option value="expert">Expert</option>
-                        <option value="crazy">Crazy</option>
-                    </select>
-                </div>
-                <div>Potential Win: $<span id="potentialWin">10.00</span></div>
+            </div>
+            <div>
+                <label>Difficulty:</label>
+                <select id="difficultyInput" class="bet-input">
+                    <option value="easy">Easy</option>
+                    <option value="medium" selected>Medium</option>
+                    <option value="hard">Hard</option>
+                    <option value="expert">Expert</option>
+                    <option value="crazy">Crazy</option>
+                </select>
+            </div>
+            <div class="potential-win">
+                <label>Potential Win:</label>
+                <div class="potential-win-amount">$<span id="potentialWin">0.00</span></div>
             </div>
             <div id="errorMessage" class="error-message"></div>
             <div class="action-button">
@@ -198,6 +191,7 @@
             grid.innerHTML = '';
             grid.appendChild(winPopup);
             grid.dataset.columns = numColumns;
+            winPopup.style.display = 'none';
             
             const difficultyMultipliers = {
                 easy: [1.84, 2.36, 3.02, 3.87, 4.95, 6.33, 8.11, 10.38],
@@ -405,6 +399,7 @@
             gameActive = false;
             revealAllPositions();
             resetGameUI();
+            document.getElementById('potentialWin').textContent = '0.00';
         }
 
         function cashOut() {
@@ -429,6 +424,7 @@
             winPopup.style.display = 'flex';
             winPopup.querySelector('.multiplier').textContent = currentMultiplier.toFixed(2) + 'x';
             winPopup.querySelector('.amount').textContent = '$' + winAmount.toFixed(2);
+            document.getElementById('potentialWin').textContent = '0.00';
         }
 
         function revealAllPositions() {
@@ -480,6 +476,21 @@
         function updateStartButtonState() {
             const betValue = parseFloat(betInput.value);
             startButton.disabled = gameActive || balance < betValue || isNaN(betValue);
+        }
+
+        function adjustBet(multiplier) {
+            const currentBet = parseFloat(betInput.value) || 0;
+            let newBet = currentBet * multiplier;
+            newBet = Math.min(Math.max(0, newBet), balance);
+            betInput.value = newBet.toFixed(2);
+            betInput.dispatchEvent(new Event('input'));
+        }
+
+        function setMaxBet() {
+            betInput.value = balance.toFixed(2);
+            betInput.dispatchEvent(new Event('input'));
+            betAmount = balance;
+            updateStats();
         }
 
         // Initialize the game

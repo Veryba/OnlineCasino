@@ -5,24 +5,6 @@
     <style>
         @import url('shared.css');
 
-        .game-container {
-            display: flex;
-            width: 100%;
-            max-width: 1200px;
-            margin: 0 auto;
-            gap: 20px;
-        }
-
-        .controls {
-            flex: 0 0 25%;
-            padding: 20px;
-            background: #1d1d1d;
-            border-radius: 8px;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
         .dice-container {
             flex: 1;
             display: flex;
@@ -34,10 +16,12 @@
             background: #1d1d1d;
             border-radius: 8px;
             position: relative;
+            min-width: 800px;
         }
 
         .target-bar {
             width: 100%;
+            max-width: 1000px;
             height: 40px;
             background: #2d2d2d;
             border-radius: 20px;
@@ -51,7 +35,7 @@
             top: 50%;
             width: 44px;
             height: 44px;
-            background: #4CAF50;
+            background: #ffffff;
             border-radius: 50%;
             transform: translate(-50%, -50%);
             cursor: pointer;
@@ -64,9 +48,17 @@
             position: absolute;
             top: 0;
             bottom: 0;
-            background: rgba(76, 175, 80, 0.2);
-            transition: none; /* Removed transition for immediate response */
+            background: rgba(76, 175, 80, 0.2); /* Green with 0.2 opacity */
+            transition: none;
             border-radius: 0 20px 20px 0;
+        }
+
+        .target-fill-lose {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            background: rgba(255, 68, 68, 0.2); /* Red with 0.2 opacity */
+            transition: none;
         }
 
         .target-value {
@@ -97,7 +89,7 @@
         }
 
         .dice-display {
-            font-size: 64px;
+            font-size: 84px;
             margin: 0;
             line-height: 1;
         }
@@ -149,6 +141,8 @@
             gap: 10px;
             align-items: center;
             justify-content: center;
+            width: 100%;
+            max-width: 1000px;
         }
 
         .target-input {
@@ -186,16 +180,19 @@
             margin-bottom: 20px;
             height: 50px;
             overflow: hidden;
+            width: 100%;
+            max-width: 1000px;
+            justify-content: center;
         }
 
         .history-item {
-            width: 50px;
-            height: 50px;
+            width: 60px;
+            height: 60px;
             border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 18px;
+            font-size: 20px;
             font-weight: bold;
             color: white;
             background: #404040;
@@ -216,25 +213,28 @@
     </style>
 </head>
 <body>
+    <img src="thumbnails/Logo.png" alt="Staka" style="height: 100px; margin: 20px 0; filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.7));">
     <button onclick="window.location.href='hub.html'" class="back-button">← Back to Hub</button>
-    <h1>Dice Game</h1>
     <div class="balance-display">Balance: $<span id="balance">1000.00</span></div>
 
     <div class="game-container">
         <div class="controls">
-            <div class="stats">
-                <div>
-                    <label>Bet Amount:</label>
-                    <div style="display: flex; gap: 5px; align-items: center;">
-                        <input type="number" id="betInput" class="bet-input" value="10" min="0" max="1000" step="0.01">
-                        <button onclick="setMaxBet()" class="max-bet-button">Max</button>
-                    </div>
+            <div>
+                <label>Bet Amount:</label>
+                <div class="bet-controls">
+                    <input type="number" id="betInput" class="bet-input" value="10" min="0" max="1000" step="0.01">
+                    <button onclick="adjustBet(0.5)" class="bet-button">½×</button>
+                    <button onclick="adjustBet(2)" class="bet-button">2×</button>
+                    <button onclick="setMaxBet()" class="bet-button">Max</button>
                 </div>
-                <div class="roll-type">
-                    <button onclick="setRollType('over')" id="rollOverBtn" class="active">Roll Over</button>
-                    <button onclick="setRollType('under')" id="rollUnderBtn">Roll Under</button>
-                </div>
-                <div>Potential Win: $<span id="potentialWin">20.00</span></div>
+            </div>
+            <div class="roll-type">
+                <button onclick="setRollType('over')" id="rollOverBtn" class="active">Roll Over</button>
+                <button onclick="setRollType('under')" id="rollUnderBtn">Roll Under</button>
+            </div>
+            <div class="potential-win">
+                <label>Potential Win:</label>
+                <div class="potential-win-amount">$<span id="potentialWin">0.00</span></div>
             </div>
             <div id="errorMessage" class="error-message"></div>
             <button onclick="roll()" id="rollButton">Roll Dice</button>
@@ -250,6 +250,7 @@
             </div>
             <div class="target-bar">
                 <div class="target-fill" id="targetFill"></div>
+                <div class="target-fill-lose" id="targetFillLose"></div>
                 <div class="target-handle" id="targetHandle"></div>
             </div>
             <div class="target-input-container">
@@ -285,6 +286,8 @@
         function updateTargetBar() {
             const handle = document.getElementById('targetHandle');
             const fill = document.getElementById('targetFill');
+            const loseFill = document.createElement('div');
+            loseFill.className = 'target-fill-lose';
             
             // Update handle position
             handle.style.left = targetValue + '%';
@@ -294,11 +297,26 @@
                 fill.style.left = targetValue + '%';
                 fill.style.right = '0';
                 fill.style.borderRadius = '0 20px 20px 0';
+                loseFill.style.left = '0';
+                loseFill.style.right = (100 - targetValue) + '%';
+                loseFill.style.borderRadius = '20px 0 0 20px';
             } else {
                 fill.style.left = '0';
                 fill.style.right = (100 - targetValue) + '%';
                 fill.style.borderRadius = '20px 0 0 20px';
+                loseFill.style.left = targetValue + '%';
+                loseFill.style.right = '0';
+                loseFill.style.borderRadius = '0 20px 20px 0';
             }
+            
+            // Remove any existing lose fill
+            const existingLoseFill = document.querySelector('.target-fill-lose');
+            if (existingLoseFill) {
+                existingLoseFill.remove();
+            }
+            
+            // Add new lose fill
+            document.querySelector('.target-bar').appendChild(loseFill);
         }
 
         function setRollType(type) {
@@ -326,6 +344,14 @@
             // Update potential win
             const potentialWin = (betAmount * parseFloat(multiplier)).toFixed(2);
             document.getElementById('potentialWin').textContent = potentialWin;
+        }
+
+        function adjustBet(multiplier) {
+            const currentBet = parseFloat(betInput.value) || 0;
+            let newBet = currentBet * multiplier;
+            newBet = Math.min(Math.max(0, newBet), balance);
+            betInput.value = newBet.toFixed(2);
+            betInput.dispatchEvent(new Event('input'));
         }
 
         betInput.addEventListener('input', function() {
@@ -410,6 +436,13 @@
                 resultDisplay.textContent = formattedResult;
                 resultDisplay.className = 'result-display lose';
             }
+
+            const diceDisplay = document.querySelector('.dice-display');
+            diceDisplay.classList.add('rolling');
+            
+            setTimeout(() => {
+                diceDisplay.classList.remove('rolling');
+            }, 500);
         }
 
         function setMaxBet() {
