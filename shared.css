@@ -2,7 +2,7 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    background: #1a1a1a;
+    background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
     color: white;
     font-family: Arial, sans-serif;
 }
@@ -14,6 +14,11 @@ body {
     display: flex;
     gap: 40px;
     align-items: flex-start;
+    backdrop-filter: blur(10px);
+    background: rgba(29, 29, 29, 0.8);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
 .controls {
@@ -35,6 +40,16 @@ body {
 .balance-display {
     font-size: 18px;
     margin-bottom: 20px;
+    background: linear-gradient(145deg, #2d2d2d, #252525);
+    padding: 10px 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
 }
 
 /* Common button styles */
@@ -47,11 +62,22 @@ button {
     cursor: pointer;
     font-size: 16px;
     width: 100%;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 button:disabled {
     background: #666;
     cursor: not-allowed;
+}
+
+/* Enhanced button hover effects */
+button:not(:disabled):hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+}
+
+button:not(:disabled):active {
+    transform: translateY(0);
 }
 
 /* Back button specific style */
@@ -78,19 +104,22 @@ button:disabled {
 
 /* Input styles */
 .bet-input {
-    background: #2d2d2d;
-    border: 2px solid #4CAF50;
+    background: linear-gradient(145deg, #252525, #2d2d2d);
+    border: 2px solid transparent;
     color: white;
     padding: 8px;
     border-radius: 8px;
     width: 100%;
     font-size: 16px;
     text-align: center;
+    transition: all 0.3s;
+    box-shadow: inset 2px 2px 5px #1a1a1a, 
+                inset -2px -2px 5px #343434;
 }
 
 .bet-input:focus {
-    outline: none;
-    border-color: #45a049;
+    border-color: #4CAF50;
+    box-shadow: 0 0 15px rgba(76, 175, 80, 0.3);
 }
 
 .bet-input:invalid {
@@ -128,6 +157,7 @@ button:disabled {
     gap: 10px;
     z-index: 100;
     width: 160px;
+    animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .win-popup .multiplier {
@@ -142,6 +172,13 @@ button:disabled {
 .multiplier {
     color: #4CAF50;
     font-weight: bold;
+    text-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+    animation: glow 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes glow {
+    from { text-shadow: 0 0 5px rgba(76, 175, 80, 0.5); }
+    to { text-shadow: 0 0 15px rgba(76, 175, 80, 0.8); }
 }
 
 .action-button {
@@ -150,4 +187,114 @@ button:disabled {
     justify-content: center;
     gap: 10px;
     width: 100%;
+}
+
+/* Glowing effect for important buttons */
+.action-button button:not(:disabled) {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.4);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(76, 175, 80, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(76, 175, 80, 0);
+    }
+}
+
+/* Enhanced win popup animation */
+@keyframes popIn {
+    0% {
+        transform: translate(-50%, -50%) scale(0.5);
+        opacity: 0;
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 1;
+    }
+}
+
+/* Add subtle gradient background */
+body {
+    background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+}
+
+/* Enhanced input styling */
+.bet-input {
+    transition: all 0.3s;
+    border: 2px solid transparent;
+    background: linear-gradient(145deg, #252525, #2d2d2d);
+    box-shadow: inset 2px 2px 5px #1a1a1a, 
+                inset -2px -2px 5px #343434;
+}
+
+.bet-input:focus {
+    border-color: #4CAF50;
+    box-shadow: 0 0 15px rgba(76, 175, 80, 0.3);
+}
+
+/* Game container enhancement */
+.game-container {
+    backdrop-filter: blur(10px);
+    background: rgba(29, 29, 29, 0.8);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+/* Balance display enhancement */
+.balance-display {
+    background: linear-gradient(145deg, #2d2d2d, #252525);
+    padding: 10px 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    animation: float 3s ease-in-out infinite;
+}
+
+/* Base shimmer effect for all cells */
+.cell {
+    position: relative;
+    overflow: hidden;
+}
+
+.cell::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.1),
+        transparent
+    );
+    animation: shimmer 2s infinite; /* Default shimmer for all cells */
+}
+
+/* Towers game specific - manage shimmer based on game state */
+.grid[data-columns].game-active .cell::after {
+    animation: none; /* Remove shimmer when game is active */
+}
+
+.grid[data-columns].game-active .cell.active-row::after {
+    animation: shimmer 2s infinite; /* Add shimmer only for active row during game */
+}
+
+/* Remove shimmer for revealed/disabled cells in both games */
+.cell.revealed::after,
+.cell.mine::after,
+.cell.hit::after,
+.cell.disabled::after {
+    animation: none;
+    display: none;
+}
+
+@keyframes shimmer {
+    100% { left: 100%; }
 }

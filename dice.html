@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dice Game</title>
+    <style>
+        @import url('shared.css');
+
+        .game-container {
+            display: flex;
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            gap: 20px;
+        }
+
+        .controls {
+            flex: 0 0 25%;
+            padding: 20px;
+            background: #1d1d1d;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .dice-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 20px;
+            padding: 20px;
+            background: #1d1d1d;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .target-bar {
+            width: 100%;
+            height: 40px;
+            background: #2d2d2d;
+            border-radius: 20px;
+            position: relative;
+            margin-top: 100px;
+            overflow: visible;
+        }
+
+        .target-handle {
+            position: absolute;
+            top: 50%;
+            width: 44px;
+            height: 44px;
+            background: #4CAF50;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+            z-index: 4;
+            transition: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .target-fill {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            background: rgba(76, 175, 80, 0.2);
+            transition: none; /* Removed transition for immediate response */
+            border-radius: 0 20px 20px 0;
+        }
+
+        .target-value {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+
+        .result-container {
+            display: flex;
+            flex-direction: column-reverse;
+            align-items: center;
+            gap: 5px;
+            position: absolute;
+            transition: all 0.3s;
+            opacity: 0;
+            bottom: 233px;
+            z-index: 3;
+        }
+
+        .result-container.visible {
+            opacity: 1;
+        }
+
+        .dice-display {
+            font-size: 64px;
+            margin: 0;
+            line-height: 1;
+        }
+
+        .result-display {
+            font-size: 28px;
+            font-weight: bold;
+            margin: 0;
+            line-height: 1;
+        }
+
+        .win {
+            color: #44ff44;
+        }
+
+        .lose {
+            color: #ff4444;
+        }
+
+        .roll-type {
+            display: flex;
+            gap: 10px;
+            margin: 10px 0;
+        }
+
+        .roll-type button {
+            flex: 1;
+            background: #2d2d2d;
+        }
+
+        .roll-type button.active {
+            background: #4CAF50;
+        }
+
+        .multiplier-display, .chance-display {
+            font-size: 18px;
+            color: white;
+            min-width: 100px;
+            text-align: center;
+        }
+
+        .multiplier-display {
+            color: #4CAF50;
+        }
+
+        .target-input-container {
+            margin-top: 130px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .target-input {
+            background: #2d2d2d;
+            border: none;
+            color: white;
+            padding: 10px;
+            border-radius: 20px;
+            width: 120px;
+            height: 40px;
+            font-size: 18px;
+            text-align: center;
+            outline: none;
+        }
+
+        .target-input:focus {
+            background: #3d3d3d;
+        }
+
+        /* Remove spinner buttons from number input */
+        .target-input::-webkit-outer-spin-button,
+        .target-input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .target-input[type=number] {
+            -moz-appearance: textfield;
+            appearance: textfield;
+        }
+
+        .history-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            height: 50px;
+            overflow: hidden;
+        }
+
+        .history-item {
+            width: 50px;
+            height: 50px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: bold;
+            color: white;
+            background: #404040;
+            transition: transform 0.3s;
+        }
+
+        .history-item.win {
+            background: #44ff44;
+        }
+
+        .history-item.lose {
+            background: #404040;
+        }
+
+        .history-item.new {
+            transform: translateY(-100%);
+        }
+    </style>
+</head>
+<body>
+    <button onclick="window.location.href='hub.html'" class="back-button">← Back to Hub</button>
+    <h1>Dice Game</h1>
+    <div class="balance-display">Balance: $<span id="balance">1000.00</span></div>
+
+    <div class="game-container">
+        <div class="controls">
+            <div class="stats">
+                <div>
+                    <label>Bet Amount:</label>
+                    <div style="display: flex; gap: 5px; align-items: center;">
+                        <input type="number" id="betInput" class="bet-input" value="10" min="0" max="1000" step="0.01">
+                        <button onclick="setMaxBet()" class="max-bet-button">Max</button>
+                    </div>
+                </div>
+                <div class="roll-type">
+                    <button onclick="setRollType('over')" id="rollOverBtn" class="active">Roll Over</button>
+                    <button onclick="setRollType('under')" id="rollUnderBtn">Roll Under</button>
+                </div>
+                <div>Potential Win: $<span id="potentialWin">20.00</span></div>
+            </div>
+            <div id="errorMessage" class="error-message"></div>
+            <button onclick="roll()" id="rollButton">Roll Dice</button>
+        </div>
+        
+        <div class="dice-container">
+            <div class="history-container" id="historyContainer">
+                <!-- History items will be added here -->
+            </div>
+            <div class="result-container" id="resultContainer">
+                <div class="dice-display">🎲</div>
+                <div class="result-display" id="resultDisplay"></div>
+            </div>
+            <div class="target-bar">
+                <div class="target-fill" id="targetFill"></div>
+                <div class="target-handle" id="targetHandle"></div>
+            </div>
+            <div class="target-input-container">
+                <div class="multiplier-display" id="multiplierDisplay">49.50x</div>
+                <input type="number" id="targetInput" class="target-input" value="50" min="2" max="98">
+                <div class="chance-display" id="chanceDisplay">2.00%</div>
+            </div>
+        </div>
+    </div>
+
+    <button onclick="addBalance()" id="addBalanceButton">Add $500</button>
+
+    <script>
+        let balance = parseFloat(localStorage.getItem('balance')) || 1000.00;
+        let betAmount = 10;
+        let isRollOver = true;
+        let isDragging = false;
+        let targetValue = 50;  // Initial value
+
+        // Initialize elements
+        const balanceDisplay = document.getElementById('balance');
+        const betInput = document.getElementById('betInput');
+        const multiplierDisplay = document.getElementById('multiplier');
+        const potentialWinDisplay = document.getElementById('potentialWin');
+        const resultDisplay = document.getElementById('resultDisplay');
+        const diceDisplay = document.querySelector('.dice-display');
+        const targetHandle = document.getElementById('targetHandle');
+        const targetInput = document.getElementById('targetInput');
+
+        // Initialize balance display
+        balanceDisplay.textContent = balance.toFixed(2);
+
+        function updateTargetBar() {
+            const handle = document.getElementById('targetHandle');
+            const fill = document.getElementById('targetFill');
+            
+            // Update handle position
+            handle.style.left = targetValue + '%';
+            
+            // Update fill based on roll type
+            if (isRollOver) {
+                fill.style.left = targetValue + '%';
+                fill.style.right = '0';
+                fill.style.borderRadius = '0 20px 20px 0';
+            } else {
+                fill.style.left = '0';
+                fill.style.right = (100 - targetValue) + '%';
+                fill.style.borderRadius = '20px 0 0 20px';
+            }
+        }
+
+        function setRollType(type) {
+            isRollOver = type === 'over';
+            document.getElementById('rollOverBtn').classList.toggle('active', isRollOver);
+            document.getElementById('rollUnderBtn').classList.toggle('active', !isRollOver);
+            updateTargetBar();
+            updateMultiplierAndChance();
+        }
+
+        function updateMultiplier() {
+            const winChance = isRollOver ? (100 - targetValue) : targetValue;
+            const multiplier = (99 / winChance).toFixed(2);
+            multiplierDisplay.textContent = multiplier + 'x';
+            potentialWinDisplay.textContent = (betAmount * multiplier).toFixed(2);
+        }
+
+        function updateMultiplierAndChance() {
+            const winChance = isRollOver ? (100 - targetValue) : targetValue;
+            const multiplier = (99 / winChance).toFixed(2);
+            
+            document.getElementById('multiplierDisplay').textContent = multiplier + 'x';
+            document.getElementById('chanceDisplay').textContent = winChance.toFixed(2) + '%';
+            
+            // Update potential win
+            const potentialWin = (betAmount * parseFloat(multiplier)).toFixed(2);
+            document.getElementById('potentialWin').textContent = potentialWin;
+        }
+
+        betInput.addEventListener('input', function() {
+            const value = parseFloat(this.value);
+            if (value < 0 || value > 1000) {
+                document.getElementById('errorMessage').textContent = 'Bet amount must be between $0 and $1000';
+                document.getElementById('rollButton').disabled = true;
+            } else if (isNaN(value)) {
+                document.getElementById('errorMessage').textContent = 'Please enter a valid number';
+                document.getElementById('rollButton').disabled = true;
+            } else if (value > balance) {
+                document.getElementById('errorMessage').textContent = 'Insufficient balance';
+                document.getElementById('rollButton').disabled = true;
+            } else {
+                document.getElementById('errorMessage').textContent = '';
+                document.getElementById('rollButton').disabled = false;
+                betAmount = value;
+                updateMultiplierAndChance();
+            }
+        });
+
+        function addToHistory(value, isWin) {
+            const historyContainer = document.getElementById('historyContainer');
+            const historyItem = document.createElement('div');
+            historyItem.className = `history-item ${isWin ? 'win' : 'lose'} new`;
+            historyItem.textContent = value;
+
+            // Add new item at the beginning
+            historyContainer.insertBefore(historyItem, historyContainer.firstChild);
+
+            // Remove the 'new' class after animation
+            setTimeout(() => {
+                historyItem.classList.remove('new');
+            }, 50);
+
+            // Remove oldest item if more than 10
+            if (historyContainer.children.length > 10) {
+                historyContainer.removeChild(historyContainer.lastChild);
+            }
+        }
+
+        function roll() {
+            if (betAmount > balance) return;
+
+            // Deduct bet from balance
+            balance -= betAmount;
+            localStorage.setItem('balance', balance);
+            balanceDisplay.textContent = balance.toFixed(2);
+
+            // Generate random number between 0 and 100
+            const result = Math.random() * 100;
+            const formattedResult = result.toFixed(2);
+
+            // Position the result container above the rolled value
+            const resultContainer = document.getElementById('resultContainer');
+            const targetBar = document.querySelector('.target-bar');
+            const barRect = targetBar.getBoundingClientRect();
+            const containerRect = document.querySelector('.dice-container').getBoundingClientRect();
+            const percentage = result;
+            const position = (percentage / 100) * barRect.width + 20;
+            
+            resultContainer.style.left = `${position}px`;
+            resultContainer.style.transform = 'translateX(-50%)';
+            resultContainer.classList.add('visible');
+
+            // Check if won
+            const hasWon = isRollOver ? result > targetValue : result < targetValue;
+            const winChance = isRollOver ? (100 - targetValue) : targetValue;
+            const multiplier = 99 / winChance;
+            
+            // Add to history
+            addToHistory(formattedResult, hasWon);
+            
+            if (hasWon) {
+                const winAmount = betAmount * multiplier;
+                balance += winAmount;
+                localStorage.setItem('balance', balance);
+                balanceDisplay.textContent = balance.toFixed(2);
+                resultDisplay.textContent = formattedResult;
+                resultDisplay.className = 'result-display win';
+            } else {
+                resultDisplay.textContent = formattedResult;
+                resultDisplay.className = 'result-display lose';
+            }
+        }
+
+        function setMaxBet() {
+            betInput.value = balance.toFixed(2);
+            betInput.dispatchEvent(new Event('input'));
+        }
+
+        function addBalance() {
+            balance += 500;
+            localStorage.setItem('balance', balance);
+            balanceDisplay.textContent = balance.toFixed(2);
+            betInput.dispatchEvent(new Event('input'));
+        }
+
+        // Add this function to reset the dice position when changing target value
+        function resetDicePosition() {
+            const resultContainer = document.getElementById('resultContainer');
+            resultContainer.classList.remove('visible');
+        }
+
+        function updateSliderAndInput(value) {
+            value = Math.min(98, Math.max(2, Math.round(value)));
+            targetValue = value;
+            targetInput.value = value;
+            updateTargetBar();
+            updateMultiplierAndChance();
+            resetDicePosition();
+        }
+
+        targetHandle.addEventListener('mousedown', () => {
+            isDragging = true;
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            
+            const targetBar = document.querySelector('.target-bar');
+            const rect = targetBar.getBoundingClientRect();
+            const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+            const percentage = (x / rect.width) * 100;
+            
+            updateSliderAndInput(percentage);
+        });
+
+        document.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+
+        targetInput.addEventListener('input', function() {
+            let value = parseInt(this.value);
+            if (isNaN(value)) value = 50;
+            value = Math.min(98, Math.max(2, value));
+            updateSliderAndInput(value);
+        });
+
+        // Initialize the game with default values
+        function initializeGame() {
+            targetValue = 50;  // Set default value
+            targetInput.value = targetValue;
+            updateTargetBar();
+            updateMultiplierAndChance();
+            resetDicePosition();
+        }
+
+        // Call initializeGame when the page loads
+        window.addEventListener('load', initializeGame);
+    </script>
+</body>
+</html>

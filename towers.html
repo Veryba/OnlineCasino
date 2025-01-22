@@ -304,6 +304,12 @@
             
             // Disable upper rows
             disableUpperRows();
+
+            // Add active-row class to first row cells
+            const firstRowCells = document.querySelectorAll(`[data-row="0"]`);
+            firstRowCells.forEach(cell => {
+                cell.classList.add('active-row');
+            });
         }
 
         function handleCellClick(row, col) {
@@ -326,10 +332,24 @@
             });
             
             if (safePositions[row].has(col)) {
-                // Correct choice
+                // Remove active-row class from current row
+                const currentRowCells = document.querySelectorAll(`[data-row="${currentRow}"]`);
+                currentRowCells.forEach(cell => {
+                    cell.classList.remove('active-row');
+                });
+
+                currentRow++;
+                
+                // Add active-row class to next row if game is still active
+                if (currentRow < numberOfRows) {
+                    const nextRowCells = document.querySelectorAll(`[data-row="${currentRow}"]`);
+                    nextRowCells.forEach(cell => {
+                        cell.classList.add('active-row');
+                    });
+                }
+
                 cell.classList.add('revealed', 'win');
                 cell.innerHTML = '💎';
-                currentRow++;
                 currentMultiplier = calculateMultiplier(currentRow);
                 updateStats();
                 
@@ -340,7 +360,12 @@
                     disableUpperRows();
                 }
             } else {
-                // Wrong choice
+                // Remove active-row class when hitting a mine
+                const currentRowCells = document.querySelectorAll(`[data-row="${currentRow}"]`);
+                currentRowCells.forEach(cell => {
+                    cell.classList.remove('active-row');
+                });
+
                 cell.classList.add('revealed', 'lose');
                 cell.innerHTML = '💣';
                 gameOver();
@@ -371,12 +396,24 @@
         }
 
         function gameOver() {
+            // Remove active-row class from all cells
+            const allCells = document.querySelectorAll('.cell');
+            allCells.forEach(cell => {
+                cell.classList.remove('active-row');
+            });
+
             gameActive = false;
             revealAllPositions();
             resetGameUI();
         }
 
         function cashOut() {
+            // Remove active-row class from all cells
+            const allCells = document.querySelectorAll('.cell');
+            allCells.forEach(cell => {
+                cell.classList.remove('active-row');
+            });
+
             if (!gameActive || currentMultiplier === 1.00) return;
             
             gameActive = false;
