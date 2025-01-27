@@ -243,7 +243,7 @@
             localStorage.setItem('balance', balance);
             balanceDisplay.textContent = balance.toFixed(2);
             
-            // Generate safe positions
+            // Generate safe positions using crypto random values
             safePositions = [];
             for (let i = 0; i < numberOfRows; i++) {
                 let safeCount, bombCount;
@@ -273,9 +273,11 @@
                 // Create array of all positions for this row
                 const positions = Array.from({length: numColumns}, (_, i) => i);
                 
-                // Shuffle the positions
+                // Fisher-Yates shuffle with crypto random values
                 for (let j = positions.length - 1; j > 0; j--) {
-                    const k = Math.floor(Math.random() * (j + 1));
+                    const randomBytes = new Uint32Array(1);
+                    crypto.getRandomValues(randomBytes);
+                    const k = randomBytes[0] % (j + 1);
                     [positions[j], positions[k]] = [positions[k], positions[j]];
                 }
                 
@@ -304,6 +306,10 @@
             firstRowCells.forEach(cell => {
                 cell.classList.add('active-row');
             });
+
+            // Disable bet adjustment buttons
+            const betButtons = document.querySelectorAll('.bet-button');
+            betButtons.forEach(button => button.disabled = true);
         }
 
         function handleCellClick(row, col) {
@@ -400,6 +406,10 @@
             revealAllPositions();
             resetGameUI();
             document.getElementById('potentialWin').textContent = '0.00';
+
+            // Re-enable bet adjustment buttons
+            const betButtons = document.querySelectorAll('.bet-button');
+            betButtons.forEach(button => button.disabled = false);
         }
 
         function cashOut() {
@@ -425,6 +435,10 @@
             winPopup.querySelector('.multiplier').textContent = currentMultiplier.toFixed(2) + 'x';
             winPopup.querySelector('.amount').textContent = '$' + winAmount.toFixed(2);
             document.getElementById('potentialWin').textContent = '0.00';
+
+            // Re-enable bet adjustment buttons
+            const betButtons = document.querySelectorAll('.bet-button');
+            betButtons.forEach(button => button.disabled = false);
         }
 
         function revealAllPositions() {

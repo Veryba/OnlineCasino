@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Crash Game</title>
+    <style>
+        @import url('shared.css');
+
+        .crash-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 20px;
+            padding: 20px;
+            background: #1d1d1d;
+            border-radius: 8px;
+            position: relative;
+            min-width: 800px;
+        }
+
+        .graph-container {
+            width: 100%;
+            height: 400px;
+            background: #2d2d2d;
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .multiplier-display {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px;
+            font-weight: bold;
+            color: #4CAF50;
+            text-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+        }
+
+        .crash-line {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 2px;
+            height: 0;
+            background: #4CAF50;
+            box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+            transform-origin: bottom left;
+        }
+
+        .history-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            height: 50px;
+            overflow: hidden;
+            width: 100%;
+            max-width: 1000px;
+            justify-content: center;
+        }
+
+        .history-item {
+            width: 80px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: bold;
+            color: white;
+            background: #404040;
+            transition: transform 0.3s;
+        }
+
+        .history-item.win {
+            background: #4CAF50;
+        }
+
+        .history-item.lose {
+            background: #ff4444;
+        }
+
+        .history-item.new {
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .crashed {
+            color: #ff4444 !important;
+            text-shadow: 0 0 10px rgba(255, 68, 68, 0.5) !important;
+        }
+
+        #cashoutButton {
+            min-width: 200px;
+        }
+
+        .auto-cashout-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .auto-cashout-input {
+            width: 100px;
+            padding: 8px;
+            background: #2d2d2d;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <img src="thumbnails/Logo.png" alt="Staka" style="height: 100px; margin: 20px 0; filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.7));">
+    <button onclick="window.location.href='hub.html'" class="back-button">← Back to Hub</button>
+    <div class="balance-display">Balance: $<span id="balance">1000.00</span></div>
+
+    <div class="game-container">
+        <div class="controls">
+            <div>
+                <label>Bet Amount:</label>
+                <div class="bet-controls">
+                    <input type="number" id="betInput" class="bet-input" value="10" min="0" max="1000" step="0.01">
+                    <button onclick="adjustBet(0.5)" class="bet-button">½×</button>
+                    <button onclick="adjustBet(2)" class="bet-button">2×</button>
+                    <button onclick="setMaxBet()" class="bet-button">Max</button>
+                </div>
+            </div>
+            <div class="auto-cashout-container">
+                <label>Auto Cashout:</label>
+                <input type="number" id="autoCashoutInput" class="auto-cashout-input" value="2.00" min="1.01" step="0.01">
+            </div>
+            <div id="errorMessage" class="error-message"></div>
+            <div class="action-button">
+                <button onclick="startGame()" id="startButton">Place Bet</button>
+                <button onclick="cashOut()" id="cashoutButton" disabled style="display: none;">
+                    Cash Out (<span id="multiplier" class="multiplier">1.00x</span>)
+                </button>
+            </div>
+        </div>
+        
+        <div class="crash-container">
+            <div class="history-container" id="historyContainer">
+                <!-- History items will be added here -->
+            </div>
+            <div class="graph-container">
+                <div class="multiplier-display" id="currentMultiplier">1.00×</div>
+                <div class="crash-line" id="crashLine"></div>
+            </div>
+        </div>
+    </div>
+
+    <button onclick="addBalance()" id="addBalanceButton">Add $500</button>
+
+    <script>
+        let balance = parseFloat(localStorage.getItem('balance')) || 1000.00;
+        let betAmount = 10;
+        let gameActive = false;
+        let currentMultiplier = 1.00;
+        let crashTimeout;
+        let updateInterval;
+        let startTime;
+
+        // Initialize elements
+        const balanceDisplay = document.getElementById('balance');
+        const betInput = document.getElementById('betInput');
+        const autoCashoutInput = document.getElementById('autoCashoutInput');
+        const startButton = document.getElementById('startButton');
+        const cashoutButton = document.getElementById('cashoutButton');
+        const multiplierDisplay = document.getElementById('currentMultiplier');
+        const crashLine = document.getElementById('crashLine');
+
+        // Initialize balance display
+        balanceDisplay.textContent = balance.toFixed(2);
+
+        function startGame() {
+            const value = parseFloat(betInput.value);
+            if (value > balance) {
+                document.getElementById('errorMessage').textContent = 'Insufficient balance';
+                return;
+            }
+
+            gameActive = true;
+            betAmount = value;
+            currentMultiplier = 1.00;
+            
+            // Deduct bet from balance
+            balance -= betAmount;
+            localStorage.setItem('balance', balance);
+            balanceDisplay.textContent = balance.toFixed(2);
+
+            // Reset UI
+            startButton.style.display = 'none';
+            cashoutButton.style.display = 'flex';
+            cashoutButton.disabled = false;
+            betInput.disabled = true;
+            autoCashoutInput.disabled = true;
+            multiplierDisplay.classList.remove('crashed');
+            crashLine.style.height = '0';
+            crashLine.style.transform = 'rotate(0deg)';
+
+            // Start the game
+            startTime = Date.now();
+            updateInterval = setInterval(updateMultiplier, 50);
+
+            // Set random crash point using crypto
+            const randomBytes = new Uint32Array(1);
+            crypto.getRandomValues(randomBytes);
+            const randomValue = randomBytes[0] / 4294967295; // Convert to 0-1 range
+            const crashPoint = 1 + Math.pow(Math.E, randomValue * Math.log(100)); // Generate between 1 and 100
+            
+            crashTimeout = setTimeout(() => {
+                crash(crashPoint);
+            }, (crashPoint - 1) * 1000);
+        }
+
+        function updateMultiplier() {
+            const elapsed = (Date.now() - startTime) / 1000;
+            currentMultiplier = 1 + elapsed;
+            
+            // Update UI
+            multiplierDisplay.textContent = currentMultiplier.toFixed(2) + '×';
+            cashoutButton.innerHTML = `Cash Out (${currentMultiplier.toFixed(2)}x)`;
+
+            // Update crash line
+            const height = Math.min(380, elapsed * 50);
+            const angle = Math.min(80, elapsed * 10);
+            crashLine.style.height = `${height}px`;
+            crashLine.style.transform = `rotate(${angle}deg)`;
+
+            // Check auto cashout
+            const autoCashoutValue = parseFloat(autoCashoutInput.value);
+            if (autoCashoutValue && currentMultiplier >= autoCashoutValue) {
+                cashOut();
+            }
+        }
+
+        function crash(crashPoint) {
+            gameActive = false;
+            clearInterval(updateInterval);
+            clearTimeout(crashTimeout);
+
+            multiplierDisplay.textContent = crashPoint.toFixed(2) + '×';
+            multiplierDisplay.classList.add('crashed');
+            
+            // Add to history
+            addToHistory(crashPoint.toFixed(2), false);
+
+            // Reset UI
+            startButton.style.display = 'flex';
+            cashoutButton.style.display = 'none';
+            betInput.disabled = false;
+            autoCashoutInput.disabled = false;
+            document.getElementById('errorMessage').textContent = '';
+        }
+
+        function cashOut() {
+            if (!gameActive) return;
+
+            gameActive = false;
+            clearInterval(updateInterval);
+            clearTimeout(crashTimeout);
+
+            const winAmount = betAmount * currentMultiplier;
+            balance += winAmount;
+            localStorage.setItem('balance', balance);
+            balanceDisplay.textContent = balance.toFixed(2);
+
+            // Add to history
+            addToHistory(currentMultiplier.toFixed(2), true);
+
+            // Reset UI
+            startButton.style.display = 'flex';
+            cashoutButton.style.display = 'none';
+            betInput.disabled = false;
+            autoCashoutInput.disabled = false;
+            document.getElementById('errorMessage').textContent = '';
+        }
+
+        function addToHistory(value, isWin) {
+            const historyContainer = document.getElementById('historyContainer');
+            const historyItem = document.createElement('div');
+            historyItem.className = `history-item ${isWin ? 'win' : 'lose'} new`;
+            historyItem.textContent = value + '×';
+
+            // Add new item at the beginning
+            historyContainer.insertBefore(historyItem, historyContainer.firstChild);
+
+            // Remove the 'new' class after animation
+            setTimeout(() => {
+                historyItem.classList.remove('new');
+            }, 300);
+
+            // Keep only last 10 items
+            while (historyContainer.children.length > 10) {
+                historyContainer.removeChild(historyContainer.lastChild);
+            }
+        }
+
+        function adjustBet(multiplier) {
+            const currentBet = parseFloat(betInput.value) || 0;
+            let newBet = currentBet * multiplier;
+            newBet = Math.min(Math.max(0, newBet), balance);
+            betInput.value = newBet.toFixed(2);
+            betInput.dispatchEvent(new Event('input'));
+        }
+
+        function setMaxBet() {
+            betInput.value = balance.toFixed(2);
+            betInput.dispatchEvent(new Event('input'));
+        }
+
+        function addBalance() {
+            balance += 500;
+            localStorage.setItem('balance', balance);
+            balanceDisplay.textContent = balance.toFixed(2);
+            betInput.dispatchEvent(new Event('input'));
+        }
+
+        // Add input validation
+        betInput.addEventListener('input', function() {
+            const value = parseFloat(this.value);
+            if (value < 0 || value > 1000) {
+                document.getElementById('errorMessage').textContent = 'Bet amount must be between $0 and $1000';
+                startButton.disabled = true;
+            } else if (isNaN(value)) {
+                document.getElementById('errorMessage').textContent = 'Please enter a valid number';
+                startButton.disabled = true;
+            } else if (value > balance) {
+                document.getElementById('errorMessage').textContent = 'Insufficient balance';
+                startButton.disabled = true;
+            } else {
+                document.getElementById('errorMessage').textContent = '';
+                startButton.disabled = false;
+                betAmount = value;
+            }
+        });
+
+        autoCashoutInput.addEventListener('input', function() {
+            const value = parseFloat(this.value);
+            if (value < 1.01) {
+                this.value = '1.01';
+            }
+        });
+    </script>
+</body>
+</html> 

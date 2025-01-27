@@ -77,6 +77,32 @@
             cursor: pointer;
             font-size: 16px;
         }
+
+        .coming-soon {
+            cursor: default;
+            position: relative;
+            filter: grayscale(100%);
+        }
+
+        .coming-soon:hover {
+            transform: none;
+            border-color: transparent;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .coming-soon-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 24px;
+            font-weight: bold;
+            z-index: 2;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
@@ -91,7 +117,18 @@
             <img src="thumbnails/Towers.jpg" alt="Towers Game" class="game-image">
         </div>
         <div class="game-card" onclick="window.location.href='dice.html'">
-            <img src="thumbnails/Dice.jpg" alt="Dice Game" class="game-image">
+            <img src="thumbnails/Dice.png" alt="Dice Game" class="game-image">
+        </div>
+        <div class="game-card" onclick="window.location.href='blackjack.html'">
+            <img src="thumbnails/blackjack.png" alt="Blackjack Game" class="game-image">
+        </div>
+        <div class="game-card coming-soon">
+            <div class="coming-soon-overlay">Coming Soon</div>
+            <img src="thumbnails/plinko.jpg" alt="Coming Soon" class="game-image">
+        </div>
+        <div class="game-card coming-soon">
+            <div class="coming-soon-overlay">Coming Soon</div>
+            <img src="thumbnails/crash.jpg" alt="Coming Soon" class="game-image">
         </div>
     </div>
 

@@ -240,10 +240,6 @@
         
         function startGame() {
             const value = parseFloat(betInput.value);
-            if (isNaN(value) || value < 0) {
-                errorMessage.textContent = 'Please enter a valid bet amount between $0 and $1000';
-                return;
-            }
             if (value > balance) {
                 errorMessage.textContent = 'Insufficient balance';
                 return;
@@ -266,14 +262,20 @@
             winPopup.style.display = 'none';
             updateStats();
             
-            // Generate mine positions
+            // Generate mine positions using crypto random values for true randomness
             minePositions = [];
-            while (minePositions.length < numberOfMines) {
-                const position = Math.floor(Math.random() * GRID_SIZE);
-                if (!minePositions.includes(position)) {
-                    minePositions.push(position);
-                }
+            const availablePositions = Array.from({length: GRID_SIZE}, (_, i) => i);
+            
+            // Fisher-Yates shuffle with crypto random values
+            for (let i = availablePositions.length - 1; i > 0; i--) {
+                const randomBytes = new Uint32Array(1);
+                crypto.getRandomValues(randomBytes);
+                const j = randomBytes[0] % (i + 1);
+                [availablePositions[i], availablePositions[j]] = [availablePositions[j], availablePositions[i]];
             }
+            
+            // Take first n positions as mine positions
+            minePositions = availablePositions.slice(0, numberOfMines);
             
             // Update buttons
             startButton.style.display = 'none';
@@ -282,6 +284,10 @@
             document.getElementById('randomTileButton').disabled = false;
             betInput.disabled = true;
             minesInput.disabled = true;
+            
+            // Disable bet adjustment buttons
+            const betButtons = document.querySelectorAll('.bet-button');
+            betButtons.forEach(button => button.disabled = true);
             
             // Update cashout button text
             updateStats();
@@ -375,6 +381,10 @@
             winPopup.querySelector('.multiplier').textContent = currentMultiplier.toFixed(2) + 'x';
             winPopup.querySelector('.amount').textContent = '$' + winAmount.toFixed(2);
             document.getElementById('potentialWin').textContent = '0.00';
+
+            // Re-enable bet adjustment buttons
+            const betButtons = document.querySelectorAll('.bet-button');
+            betButtons.forEach(button => button.disabled = false);
         }
 
         // Modified fadeUnclickedCells function
