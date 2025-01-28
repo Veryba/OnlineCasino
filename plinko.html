@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Plinko Game</title>
+    <style>
+        @import url('shared.css');
+
+        .plinko-board {
+            width: 800px;
+            height: 600px;
+            background: #2d2d2d;
+            border-radius: 8px;
+            position: relative;
+            margin: 20px auto;
+        }
+
+        .peg {
+            width: 8px;
+            height: 8px;
+            background: #404040;
+            border-radius: 50%;
+            position: absolute;
+            transform: translate(-50%, -50%);
+        }
+
+        .multiplier-peg {
+            width: 20px;
+            height: 20px;
+            background: #ffd700;
+            border-radius: 50%;
+            position: absolute;
+            transform: translate(-50%, -50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: #000;
+            font-weight: bold;
+        }
+
+        .ball {
+            width: 15px;
+            height: 15px;
+            background: #ff4444;
+            border-radius: 50%;
+            position: absolute;
+            transform: translate(-50%, -50%);
+            transition: all 0.1s linear;
+        }
+
+        .bucket {
+            width: 60px;
+            height: 40px;
+            background: #404040;
+            position: absolute;
+            bottom: 0;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 14px;
+        }
+
+        .risk-selector {
+            margin: 20px;
+        }
+
+        .risk-selector button {
+            margin: 0 5px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            background: #404040;
+            color: white;
+            cursor: pointer;
+        }
+
+        .risk-selector button.active {
+            background: #ffd700;
+            color: black;
+        }
+
+        #drop-button {
+            margin: 20px;
+            padding: 15px 30px;
+            font-size: 18px;
+            background: #ffd700;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            color: black;
+        }
+
+        #drop-button:disabled {
+            background: #404040;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <img src="thumbnails/Logo.png" alt="Staka" style="height: 100px; margin: 20px 0; filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.7));">
+    <button onclick="window.location.href='hub.html'" class="back-button">← Back to Hub</button>
+    <div class="balance-display">Balance: $<span id="balance">1000.00</span></div>
+
+    <div class="bet-controls">
+        <div class="bet-input-container">
+            <input type="number" id="bet-amount" placeholder="Enter bet amount" min="0" step="0.01">
+            <div class="bet-buttons">
+                <button onclick="adjustBet(0.5)">½</button>
+                <button onclick="adjustBet(2)">2×</button>
+                <button onclick="setMaxBet()">Max</button>
+            </div>
+        </div>
+        <div id="error-message" class="error-message"></div>
+    </div>
+
+    <div class="risk-selector">
+        <button class="risk-button active" data-risk="low">Low</button>
+        <button class="risk-button" data-risk="medium">Medium</button>
+        <button class="risk-button" data-risk="high">High</button>
+    </div>
+
+    <div class="plinko-board" id="plinko-board"></div>
+    <button id="drop-button" onclick="dropBall()">Drop Ball</button>
+
+    <script>
+        let balance = 1000.00;
+        let currentRisk = 'low';
+        let gameInProgress = false;
+        const rows = 8;
+        const errorMessage = document.getElementById('error-message');
+        const betInput = document.getElementById('bet-amount');
+        const dropButton = document.getElementById('drop-button');
+        const board = document.getElementById('plinko-board');
+        const balanceDisplay = document.getElementById('balance');
+
+        // Payout tables
+        const PayoutLists = {
+            low: [5.6, 2.1, 1.1, 1, 0.5, 1, 1.1, 2.1, 5.6],
+            medium: [13, 3, 1.3, 0.7, 0.4, 0.7, 1.3, 3, 13],
+            high: [29, 4, 1.5, 0.3, 0.2, 0.3, 1.5, 4, 29]
+        };
+
+        function initializeBoard() {
+            // Clear the board
+            board.innerHTML = '';
+
+            // Add pegs
+            for (let row = 0; row < rows; row++) {
+                const pegCount = row + 1;
+                for (let col = 0; col <= row; col++) {
+                    const peg = document.createElement('div');
+                    peg.className = 'peg';
+                    const x = (board.offsetWidth / (pegCount + 1)) * (col + 1);
+                    const y = (board.offsetHeight * 0.2) + ((board.offsetHeight * 0.6) / (rows + 1)) * (row + 1);
+                    peg.style.left = x + 'px';
+                    peg.style.top = y + 'px';
+                    board.appendChild(peg);
+                }
+            }
+
+            // Add buckets
+            const bucketCount = rows + 1;
+            for (let i = 0; i < bucketCount; i++) {
+                const bucket = document.createElement('div');
+                bucket.className = 'bucket';
+                const x = (board.offsetWidth / (bucketCount + 1)) * (i + 1);
+                bucket.style.left = x + 'px';
+                bucket.textContent = PayoutLists[currentRisk][i] + 'x';
+                board.appendChild(bucket);
+            }
+        }
+
+        function addBalance() {
+            const balanceElement = document.getElementById('balance');
+            balanceElement.textContent = balance.toFixed(2);
+        }
+
+        function setMaxBet() {
+            betInput.value = balance.toFixed(2);
+            updateStartButtonState();
+        }
+
+        function adjustBet(multiplier) {
+            const currentBet = parseFloat(betInput.value) || 0;
+            betInput.value = (currentBet * multiplier).toFixed(2);
+            updateStartButtonState();
+        }
+
+        function updateStartButtonState() {
+            const betAmount = parseFloat(betInput.value);
+            dropButton.disabled = !betAmount || betAmount <= 0 || betAmount > balance || gameInProgress;
+        }
+
+        function generatePath() {
+            const path = [];
+            for (let i = 0; i < rows; i++) {
+                path.push(Math.random() < 0.5 ? 'left' : 'right');
+            }
+            return path;
+        }
+
+        function calculateFinalBucket(path) {
+            let position = Math.floor(rows / 2);
+            path.forEach(direction => {
+                position += direction === 'left' ? 0 : 1;
+            });
+            return position;
+        }
+
+        async function dropBall() {
+            const betAmount = parseFloat(betInput.value);
+            if (betAmount <= 0 || betAmount > balance) {
+                errorMessage.textContent = 'Invalid bet amount';
+                return;
+            }
+
+            gameInProgress = true;
+            dropButton.disabled = true;
+            balance -= betAmount;
+            addBalance();
+
+            const ball = document.createElement('div');
+            ball.className = 'ball';
+            const startX = board.offsetWidth / 2;
+            const startY = board.offsetHeight * 0.1;
+            ball.style.left = startX + 'px';
+            ball.style.top = startY + 'px';
+            board.appendChild(ball);
+
+            const path = generatePath();
+            const finalBucket = calculateFinalBucket(path);
+            const multiplier = PayoutLists[currentRisk][finalBucket];
+            
+            let currentRow = 0;
+            let currentX = startX;
+            let currentY = startY;
+
+            for (const direction of path) {
+                currentRow++;
+                await new Promise(resolve => setTimeout(resolve, 300));
+                
+                const nextY = (board.offsetHeight * 0.2) + ((board.offsetHeight * 0.6) / (rows + 1)) * currentRow;
+                const pegSpacing = board.offsetWidth / (currentRow + 2);
+                const nextX = direction === 'left' ? currentX - pegSpacing/2 : currentX + pegSpacing/2;
+                
+                ball.style.left = nextX + 'px';
+                ball.style.top = nextY + 'px';
+                
+                currentX = nextX;
+                currentY = nextY;
+            }
+
+            // Final movement to bucket
+            await new Promise(resolve => setTimeout(resolve, 300));
+            const finalX = (board.offsetWidth / (rows + 2)) * (finalBucket + 1);
+            const finalY = board.offsetHeight * 0.9;
+            ball.style.left = finalX + 'px';
+            ball.style.top = finalY + 'px';
+
+            // Calculate winnings
+            const winAmount = betAmount * multiplier;
+            balance += winAmount;
+            
+            await new Promise(resolve => setTimeout(resolve, 500));
+            addBalance();
+            
+            // Clean up
+            setTimeout(() => {
+                board.removeChild(ball);
+                gameInProgress = false;
+                updateStartButtonState();
+            }, 1000);
+        }
+
+        // Risk selector functionality
+        document.querySelectorAll('.risk-button').forEach(button => {
+            button.addEventListener('click', () => {
+                if (gameInProgress) return;
+                document.querySelectorAll('.risk-button').forEach(b => b.classList.remove('active'));
+                button.classList.add('active');
+                currentRisk = button.dataset.risk;
+                initializeBoard();
+            });
+        });
+
+        // Bet input validation
+        betInput.addEventListener('input', function() {
+            const value = parseFloat(this.value);
+            if (value < 0) {
+                errorMessage.textContent = 'Bet amount must be over $0';
+            } else if (value > balance) {
+                errorMessage.textContent = 'Insufficient balance';
+            } else {
+                errorMessage.textContent = '';
+            }
+            updateStartButtonState();
+        });
+
+        // Initialize the game
+        initializeBoard();
+        updateStartButtonState();
+    </script>
+</body>
+</html>

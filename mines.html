@@ -71,7 +71,7 @@
 </head>
 <body>
     <img src="thumbnails/Logo.png" alt="Staka" style="height: 100px; margin: 20px 0; filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.7));">
-    <button onclick="window.location.href='hub.html'" class="back-button">← Back to Hub</button>
+    <button onclick="window.location.href='index.html'" class="back-button">← Back to Hub</button>
     <div class="balance-display">Balance: $<span id="balance">1000.00</span></div>
 
     <div class="game-container">
@@ -139,6 +139,9 @@
     </div>
 
     <button onclick="addBalance()" id="addBalanceButton">Add $500</button> <!-- TODO: Remove this button for production -->
+
+    <audio id="gemSound" src="sounds/gem.wav"></audio>
+    <audio id="bombSound" src="sounds/bomb.wav"></audio>
 
     <script>
         const GRID_SIZE = 25;
@@ -300,6 +303,7 @@
             
             if (minePositions.includes(index)) {
                 // Hit a mine
+                document.getElementById('bombSound').play();
                 gameActive = false;
                 cell.classList.add('revealed', 'mine', 'hit');
                 cell.innerHTML = '💣';
@@ -316,6 +320,9 @@
                 document.getElementById('potentialWin').textContent = '0.00';
             } else {
                 // Found a gem
+                const gemSound = document.getElementById('gemSound');
+                gemSound.currentTime = 0; // Reset the audio to start
+                gemSound.play();
                 cell.classList.add('revealed', 'gem', 'clicked');
                 cell.innerHTML = '💰';
                 revealedCells.push(index);
@@ -482,6 +489,10 @@
         
         // Initialize the game
         initializeGrid();
+        
+        // Set initial volume for sound effects
+        document.getElementById('gemSound').volume = 0.3;
+        document.getElementById('bombSound').volume = 0.3;
     </script>
 </body>
 </html>

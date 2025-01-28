@@ -10,13 +10,13 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: flex-start;
             gap: 20px;
             padding: 20px;
             background: #1d1d1d;
             border-radius: 8px;
             position: relative;
             min-width: 800px;
+            height: 600px;
         }
 
         .graph-container {
@@ -26,6 +26,17 @@
             border-radius: 8px;
             position: relative;
             overflow: hidden;
+        }
+
+        .crash-line {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 2px;
+            height: 0;
+            background: #4CAF50;
+            transform-origin: bottom left;
+            transition: height 0.1s linear;
         }
 
         .multiplier-display {
@@ -39,72 +50,31 @@
             text-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
         }
 
-        .crash-line {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 2px;
-            height: 0;
-            background: #4CAF50;
-            box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
-            transform-origin: bottom left;
-        }
-
         .history-container {
             display: flex;
             gap: 10px;
-            margin-bottom: 20px;
-            height: 50px;
-            overflow: hidden;
+            overflow-x: auto;
+            padding: 10px;
             width: 100%;
             max-width: 1000px;
-            justify-content: center;
         }
 
         .history-item {
-            width: 80px;
-            height: 40px;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
+            padding: 8px 16px;
+            border-radius: 4px;
             font-weight: bold;
-            color: white;
-            background: #404040;
-            transition: transform 0.3s;
+            min-width: 80px;
+            text-align: center;
         }
 
         .history-item.win {
-            background: #4CAF50;
+            background: rgba(76, 175, 80, 0.2);
+            color: #4CAF50;
         }
 
         .history-item.lose {
-            background: #ff4444;
-        }
-
-        .history-item.new {
-            animation: slideIn 0.3s ease-out;
-        }
-
-        @keyframes slideIn {
-            from {
-                transform: translateY(-100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
-        }
-
-        .crashed {
-            color: #ff4444 !important;
-            text-shadow: 0 0 10px rgba(255, 68, 68, 0.5) !important;
-        }
-
-        #cashoutButton {
-            min-width: 200px;
+            background: rgba(255, 68, 68, 0.2);
+            color: #ff4444;
         }
 
         .auto-cashout-container {
@@ -114,14 +84,38 @@
             margin-top: 10px;
         }
 
-        .auto-cashout-input {
+        .auto-cashout-container input {
             width: 100px;
-            padding: 8px;
-            background: #2d2d2d;
-            border: none;
+        }
+
+        .game-status {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            padding: 8px 16px;
             border-radius: 4px;
-            color: white;
-            font-size: 16px;
+            font-weight: bold;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .game-status.active {
+            opacity: 1;
+        }
+
+        .game-status.starting {
+            background: rgba(255, 193, 7, 0.2);
+            color: #ffc107;
+        }
+
+        .game-status.in-progress {
+            background: rgba(76, 175, 80, 0.2);
+            color: #4CAF50;
+        }
+
+        .game-status.crashed {
+            background: rgba(255, 68, 68, 0.2);
+            color: #ff4444;
         }
     </style>
 </head>
@@ -143,24 +137,29 @@
             </div>
             <div class="auto-cashout-container">
                 <label>Auto Cashout:</label>
-                <input type="number" id="autoCashoutInput" class="auto-cashout-input" value="2.00" min="1.01" step="0.01">
+                <input type="number" id="autoCashoutInput" class="bet-input" value="2.00" min="1.01" step="0.01">
+            </div>
+            <div class="potential-win">
+                <label>Potential Win:</label>
+                <div class="potential-win-amount">$<span id="potentialWin">0.00</span></div>
             </div>
             <div id="errorMessage" class="error-message"></div>
             <div class="action-button">
-                <button onclick="startGame()" id="startButton">Place Bet</button>
+                <button onclick="placeBet()" id="betButton">Place Bet</button>
                 <button onclick="cashOut()" id="cashoutButton" disabled style="display: none;">
                     Cash Out (<span id="multiplier" class="multiplier">1.00x</span>)
                 </button>
             </div>
         </div>
-        
+
         <div class="crash-container">
+            <div class="game-status" id="gameStatus">Starting in 5...</div>
+            <div class="graph-container">
+                <div class="crash-line" id="crashLine"></div>
+                <div class="multiplier-display" id="currentMultiplier">1.00x</div>
+            </div>
             <div class="history-container" id="historyContainer">
                 <!-- History items will be added here -->
-            </div>
-            <div class="graph-container">
-                <div class="multiplier-display" id="currentMultiplier">1.00×</div>
-                <div class="crash-line" id="crashLine"></div>
             </div>
         </div>
     </div>
@@ -172,109 +171,93 @@
         let betAmount = 10;
         let gameActive = false;
         let currentMultiplier = 1.00;
-        let crashTimeout;
-        let updateInterval;
+        let hasPlacedBet = false;
+        let autoCashoutValue = 2.00;
+        let gameInterval;
         let startTime;
 
         // Initialize elements
         const balanceDisplay = document.getElementById('balance');
         const betInput = document.getElementById('betInput');
         const autoCashoutInput = document.getElementById('autoCashoutInput');
-        const startButton = document.getElementById('startButton');
+        const betButton = document.getElementById('betButton');
         const cashoutButton = document.getElementById('cashoutButton');
-        const multiplierDisplay = document.getElementById('currentMultiplier');
+        const errorMessage = document.getElementById('errorMessage');
+        const gameStatus = document.getElementById('gameStatus');
         const crashLine = document.getElementById('crashLine');
+        const currentMultiplierDisplay = document.getElementById('currentMultiplier');
 
         // Initialize balance display
         balanceDisplay.textContent = balance.toFixed(2);
 
-        function startGame() {
-            const value = parseFloat(betInput.value);
-            if (value > balance) {
-                document.getElementById('errorMessage').textContent = 'Insufficient balance';
-                return;
-            }
-
-            gameActive = true;
-            betAmount = value;
-            currentMultiplier = 1.00;
-            
-            // Deduct bet from balance
-            balance -= betAmount;
-            localStorage.setItem('balance', balance);
-            balanceDisplay.textContent = balance.toFixed(2);
-
-            // Reset UI
-            startButton.style.display = 'none';
-            cashoutButton.style.display = 'flex';
-            cashoutButton.disabled = false;
-            betInput.disabled = true;
-            autoCashoutInput.disabled = true;
-            multiplierDisplay.classList.remove('crashed');
-            crashLine.style.height = '0';
-            crashLine.style.transform = 'rotate(0deg)';
-
-            // Start the game
-            startTime = Date.now();
-            updateInterval = setInterval(updateMultiplier, 50);
-
-            // Set random crash point using crypto
-            const randomBytes = new Uint32Array(1);
-            crypto.getRandomValues(randomBytes);
-            const randomValue = randomBytes[0] / 4294967295; // Convert to 0-1 range
-            const crashPoint = 1 + Math.pow(Math.E, randomValue * Math.log(100)); // Generate between 1 and 100
-            
-            crashTimeout = setTimeout(() => {
-                crash(crashPoint);
-            }, (crashPoint - 1) * 1000);
+        function generateCrashPoint() {
+            // This is a simplified version - you should use your server-side implementation
+            const h = crypto.getRandomValues(new Uint32Array(1))[0];
+            const e = Math.pow(2, 32);
+            return Math.floor((100 * e - h) / (e - h)) / 100.0;
         }
 
-        function updateMultiplier() {
-            const elapsed = (Date.now() - startTime) / 1000;
-            currentMultiplier = 1 + elapsed;
+        function startGame() {
+            gameActive = true;
+            currentMultiplier = 1.00;
+            startTime = Date.now();
             
-            // Update UI
-            multiplierDisplay.textContent = currentMultiplier.toFixed(2) + '×';
-            cashoutButton.innerHTML = `Cash Out (${currentMultiplier.toFixed(2)}x)`;
+            // Reset crash line
+            crashLine.style.height = '0';
+            crashLine.style.transform = 'rotate(0deg)';
+            
+            // Start the game loop
+            gameInterval = setInterval(updateGame, 50);
+        }
 
+        function updateGame() {
+            if (!gameActive) return; // Stop updating if game is not active
+            
+            const elapsed = (Date.now() - startTime) / 1000;
+            currentMultiplier = Math.pow(Math.E, 0.1 * elapsed);
+            
+            // Update display
+            currentMultiplierDisplay.textContent = currentMultiplier.toFixed(2) + 'x';
+            
             // Update crash line
-            const height = Math.min(380, elapsed * 50);
+            const height = Math.min(400, elapsed * 50);
             const angle = Math.min(80, elapsed * 10);
-            crashLine.style.height = `${height}px`;
+            crashLine.style.height = height + 'px';
             crashLine.style.transform = `rotate(${angle}deg)`;
 
-            // Check auto cashout
-            const autoCashoutValue = parseFloat(autoCashoutInput.value);
-            if (autoCashoutValue && currentMultiplier >= autoCashoutValue) {
+            // Check for auto cashout
+            if (hasPlacedBet && currentMultiplier >= autoCashoutValue) {
                 cashOut();
             }
         }
 
-        function crash(crashPoint) {
-            gameActive = false;
-            clearInterval(updateInterval);
-            clearTimeout(crashTimeout);
+        function placeBet() {
+            const value = parseFloat(betInput.value);
+            if (value > balance) {
+                errorMessage.textContent = 'Insufficient balance';
+                return;
+            }
 
-            multiplierDisplay.textContent = crashPoint.toFixed(2) + '×';
-            multiplierDisplay.classList.add('crashed');
-            
-            // Add to history
-            addToHistory(crashPoint.toFixed(2), false);
+            hasPlacedBet = true;
+            betAmount = value;
+            balance -= value;
+            localStorage.setItem('balance', balance);
+            balanceDisplay.textContent = balance.toFixed(2);
 
-            // Reset UI
-            startButton.style.display = 'flex';
-            cashoutButton.style.display = 'none';
-            betInput.disabled = false;
-            autoCashoutInput.disabled = false;
-            document.getElementById('errorMessage').textContent = '';
+            // Update UI
+            betButton.style.display = 'none';
+            cashoutButton.style.display = 'flex';
+            cashoutButton.disabled = false;
+            betInput.disabled = true;
+            autoCashoutInput.disabled = true;
+
+            // Disable bet adjustment buttons
+            const betButtons = document.querySelectorAll('.bet-button');
+            betButtons.forEach(button => button.disabled = true);
         }
 
         function cashOut() {
-            if (!gameActive) return;
-
-            gameActive = false;
-            clearInterval(updateInterval);
-            clearTimeout(crashTimeout);
+            if (!hasPlacedBet || !gameActive) return;
 
             const winAmount = betAmount * currentMultiplier;
             balance += winAmount;
@@ -282,34 +265,48 @@
             balanceDisplay.textContent = balance.toFixed(2);
 
             // Add to history
-            addToHistory(currentMultiplier.toFixed(2), true);
+            addToHistory(currentMultiplier, true);
 
-            // Reset UI
-            startButton.style.display = 'flex';
+            // Reset game state
+            hasPlacedBet = false;
+            
+            // Update UI to show waiting state
+            betButton.style.display = 'flex';
+            betButton.textContent = 'Waiting for next game...';
+            betButton.disabled = true;
             cashoutButton.style.display = 'none';
-            betInput.disabled = false;
-            autoCashoutInput.disabled = false;
-            document.getElementById('errorMessage').textContent = '';
         }
 
-        function addToHistory(value, isWin) {
+        function addToHistory(multiplier, won) {
             const historyContainer = document.getElementById('historyContainer');
             const historyItem = document.createElement('div');
-            historyItem.className = `history-item ${isWin ? 'win' : 'lose'} new`;
-            historyItem.textContent = value + '×';
-
-            // Add new item at the beginning
+            historyItem.className = `history-item ${won ? 'win' : 'lose'}`;
+            historyItem.textContent = multiplier.toFixed(2) + 'x';
+            
+            // Add to beginning of history
             historyContainer.insertBefore(historyItem, historyContainer.firstChild);
-
-            // Remove the 'new' class after animation
-            setTimeout(() => {
-                historyItem.classList.remove('new');
-            }, 300);
-
+            
             // Keep only last 10 items
             while (historyContainer.children.length > 10) {
                 historyContainer.removeChild(historyContainer.lastChild);
             }
+        }
+
+        function resetGameUI() {
+            // Only update to "Place Bet" if player wasn't in the game or lost
+            if (!hasPlacedBet) {
+                betButton.textContent = 'Place Bet';
+                betButton.disabled = false;
+                betInput.disabled = false;
+                autoCashoutInput.disabled = false;
+
+                // Re-enable bet adjustment buttons
+                const betButtons = document.querySelectorAll('.bet-button');
+                betButtons.forEach(button => button.disabled = false);
+            }
+            
+            betButton.style.display = 'flex';
+            cashoutButton.style.display = 'none';
         }
 
         function adjustBet(multiplier) {
@@ -329,24 +326,52 @@
             balance += 500;
             localStorage.setItem('balance', balance);
             balanceDisplay.textContent = balance.toFixed(2);
-            betInput.dispatchEvent(new Event('input'));
         }
 
-        // Add input validation
+        // Start game loop
+        setInterval(() => {
+            if (!gameActive) {
+                const crashPoint = generateCrashPoint();
+                startGame();
+                
+                setTimeout(() => {
+                    // Stop the game and freeze multiplier display
+                    gameActive = false;
+                    clearInterval(gameInterval);
+                    
+                    // Set final multiplier display
+                    currentMultiplier = crashPoint;
+                    currentMultiplierDisplay.textContent = crashPoint.toFixed(2) + 'x';
+                    
+                    if (hasPlacedBet) {
+                        // Player lost
+                        addToHistory(crashPoint, false);
+                        hasPlacedBet = false;
+                        resetGameUI();
+                    } else {
+                        // Game ended but player wasn't in (either didn't bet or already cashed out)
+                        // Reset UI for next game
+                        resetGameUI();
+                    }
+                }, crashPoint * 1000);
+            }
+        }, 5000);
+
+        // Add input event listeners
         betInput.addEventListener('input', function() {
             const value = parseFloat(this.value);
-            if (value < 0 || value > 1000) {
-                document.getElementById('errorMessage').textContent = 'Bet amount must be between $0 and $1000';
-                startButton.disabled = true;
+            if (value < 0) {
+                errorMessage.textContent = 'Bet amount must be more than $0';
+                betButton.disabled = true;
             } else if (isNaN(value)) {
-                document.getElementById('errorMessage').textContent = 'Please enter a valid number';
-                startButton.disabled = true;
+                errorMessage.textContent = 'Please enter a valid number';
+                betButton.disabled = true;
             } else if (value > balance) {
-                document.getElementById('errorMessage').textContent = 'Insufficient balance';
-                startButton.disabled = true;
+                errorMessage.textContent = 'Insufficient balance';
+                betButton.disabled = true;
             } else {
-                document.getElementById('errorMessage').textContent = '';
-                startButton.disabled = false;
+                errorMessage.textContent = '';
+                betButton.disabled = false;
                 betAmount = value;
             }
         });
@@ -356,7 +381,8 @@
             if (value < 1.01) {
                 this.value = '1.01';
             }
+            autoCashoutValue = Math.max(1.01, value);
         });
     </script>
 </body>
-</html> 
+</html>
